@@ -11,6 +11,7 @@ var DtlsHandshake = function( data ) {
 };
 util.inherits( DtlsHandshake, Packet );
 
+DtlsHandshake.overhead = ( 8 + 24 + 16 + 24 ) / 8;
 DtlsHandshake.prototype.type = dtls.MessageType.handshake;
 DtlsHandshake.prototype.spec = new PacketSpec([
 

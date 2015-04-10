@@ -15,8 +15,7 @@ var DtlsExtension = require( './packets/DtlsExtension' );
 var DtlsHelloVerifyRequest = require( './packets/DtlsHelloVerifyRequest' );
 var DtlsProtocolVersion = require( './packets/DtlsProtocolVersion' );
 var DtlsRandom = require( './packets/DtlsRandom' );
-var HandshakeReassembler = require( './HandshakeReassembler' );
-var HandshakeBuffer = require( './HandshakeBuffer' );
+var HandshakeBuilder = require( './HandshakeBuilder' );
 
 var SessionState = {
     uninitialized: 0,
@@ -32,8 +31,7 @@ var DtlsSession = function( dgram, rinfo ) {
     this.state = SessionState.uninitialized;
     this.recordLayer = new DtlsRecordLayer( dgram, rinfo );
 
-    this.handshakeBuffer = new HandshakeBuffer();
-    this.handshakeReassembler = null;
+    this.handshakeBuilder = new HandshakeBuilder();
 
     this.sequence = 0;
     this.messageSeq = 0;
@@ -46,6 +44,7 @@ DtlsSession.prototype.serverVersion = new DtlsProtocolVersion({
 
 DtlsSession.prototype.handle = function( packet ) {
 
+    log.fine( 'Incoming packet; length:', packet.length );
     var message = this.recordLayer.handlePacket( packet );
 
     var msgType = dtls.MessageTypeName[ message.type ];
@@ -55,8 +54,6 @@ DtlsSession.prototype.handle = function( packet ) {
         return log.error( 'Handler not found for', msgType, 'message' );
 
     handler.call( this, message );
-
-    log.info( packet );
 };
 
 DtlsSession.prototype.changeState = function( state ) {
@@ -71,34 +68,24 @@ DtlsSession.prototype.changeState = function( state ) {
 
 DtlsSession.prototype.process_handshake = function( message ) {
 
-
     // Enqueue the current handshake.
-    var handshake = new DtlsHandshake( message.fragment );
-    log.info( 'Queuing handshake, sequence: ' + handshake.messageSeq );
-    this.handshakeBuffer.enqueue( handshake );
+    var newHandshake = new DtlsHandshake( message.fragment );
+    var newHandshakeName = dtls.HandshakeTypeName[ newHandshake.msgType ];
+    log.info( 'Received handshake fragment; sequence:',
+        newHandshake.messageSeq + ':' + newHandshakeName );
+    this.handshakeBuilder.add( newHandshake );
 
-    // Iterate the buffer while we got stuff in it.
-    //while( this.handshakeBuffer.next() ) {
-        handshake = this.handshakeBuffer.current;
-        log.info( 'Processing handshake: ' + handshake.messageSeq );
-
-        // Ensure we got a reassembler that cares about these handshake messages.
-        if( !this.handshakeReassembler )
-            this.handshakeReassembler = new HandshakeReassembler( handshake );
-
-        // Merge the current handshake fragment.
-        // Return doing nothing if the handshake isn't complete.
-        handshake = this.handshakeReassembler.merge( handshake );
-        if( !handshake ) {
-            log.info( 'Buffered handshake fragment' );
-            return;
-        }
-
-        this.handshakeReassembler = null;
-
+    // Process available defragmented handshakes.
+    var handshake = this.handshakeBuilder.next();
+    while( handshake ) {
         var handshakeName = dtls.HandshakeTypeName[ handshake.msgType ];
+
+        log.info( 'Processing handshake:',
+            handshake.messageSeq + ':' + handshakeName );
         this[ 'process_handshake_' + handshakeName ]( handshake );
-    //}
+
+        handshake = this.handshakeBuilder.next();
+    }
 };
 
 DtlsSession.prototype.process_handshake_clientHello = function( handshake ) {
@@ -113,16 +100,13 @@ DtlsSession.prototype.process_handshake_clientHello = function( handshake ) {
             cookie: this.cookie
         });
 
-        var buffer = cookieVerify.getBuffer();
-        this.recordLayer.send( new DtlsHandshake({
-            msgType: cookieVerify.messageType,
-            length: buffer.length,
-            messageSeq: this.sequence++,
-            fragmentOffset: 0,
-            body: buffer
-        }));
+        var handshakes = this.handshakeBuilder.createHandshakes( cookieVerify );
+
+        log.fine( 'ClientHello without cookie. Requesting verify.' );
+        this.recordLayer.send( handshakes );
 
     } else {
+        log.fine( 'ClientHello received.' );
         this.changeState( SessionState.sendHello );
     }
 };
@@ -152,14 +136,9 @@ DtlsSession.prototype.actions[ SessionState.sendHello ] = function() {
         ]
     });
 
-    var buffer = serverHello.getBuffer();
-    this.recordLayer.send( new DtlsHandshake({
-        msgType: serverHello.messageType,
-        length: buffer.length,
-        messageSeq: this.sequence++,
-        fragmentOffset: 0,
-        body: buffer
-    }));
+    log.info( 'Sending ServerHello' );
+    var handshakes = this.handshakeBuilder.createHandshakes( serverHello );
+    this.recordLayer.send( handshakes );
 
 };
 

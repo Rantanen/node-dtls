@@ -1,6 +1,11 @@
 
+"use strict";
 
+var logg = require( 'logg' );
 var DtlsSocket = require( './DtlsSocket' );
+
+var log = logg.getLogger( 'dtls' );
+log.setLogLevel( logg.Level.FINE );
 
 module.exports = {
     DtlsSocket: DtlsSocket,
@@ -13,8 +18,8 @@ module.exports = {
         var dtlsSocket = new DtlsSocket( dgramSocket );
 
         if( callback )
-            dglsSocket.on( 'message', callback );
+            dtlsSocket.on( 'message', callback );
 
         return dtlsSocket;
     }
-}
+};

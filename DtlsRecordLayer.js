@@ -7,6 +7,7 @@ var SecurityParameters = require( './SecurityParameters' );
 var SequenceNumber = require( './SequenceNumber' );
 var DtlsPlaintext = require( './packets/DtlsPlaintext' );
 var DtlsProtocolVersion = require( './packets/DtlsProtocolVersion' );
+var dtls = require( './dtls' );
 
 var DtlsRecordLayer = function( dgram, rinfo ) {
 
@@ -36,7 +37,22 @@ DtlsRecordLayer.prototype.handlePacket = function( packet ) {
     return packet;
 };
 
+DtlsRecordLayer.prototype.resendLast = function() {
+    this.send( this.lastOutgoing );
+};
+
 DtlsRecordLayer.prototype.send = function( msg ) {
+
+    this.lastOutgoing = msg;
+
+    if( !( msg instanceof Array ))
+        return this.sendInternal( msg );
+
+    for( var m in msg )
+        this.sendInternal( msg[m] );
+};
+
+DtlsRecordLayer.prototype.sendInternal = function( msg ) {
 
     var plaintext = new DtlsPlaintext({
         type: msg.type,
@@ -45,6 +61,9 @@ DtlsRecordLayer.prototype.send = function( msg ) {
         sequenceNumber: this.sequence.next(),
         fragment: msg.getBuffer()
     });
+
+    var plaintextTypeName = dtls.MessageTypeName[ plaintext.type ];
+    log.info( 'Sending', plaintextTypeName );
 
     var buffer = plaintext.getBuffer();
 

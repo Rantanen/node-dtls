@@ -14,6 +14,7 @@ var dtls = {
         helloRequest: 0,
         clientHello: 1,
         serverHello: 2,
+        helloVerifyRequest: 3,
         certificate: 11,
         serverKeyExchange: 12,
         certificateRequest: 13,

@@ -20,7 +20,7 @@ BufferBuilder.prototype.writeBytes = function( buffer, size ) {
 
 BufferBuilder.prototype.getBuffer = function() {
     return Buffer.concat( this.buffers );
-}
+};
 
 var makeDelegate = function( type, size ) {
     if( type instanceof Object ) {
@@ -35,7 +35,7 @@ var makeDelegate = function( type, size ) {
         buffer[ 'write' + type ]( value, 0 );
         this.buffers.push( buffer );
     };
-}
+};
 
 var expandTypes = function( types /*, ... */ ) {
 
@@ -53,7 +53,7 @@ var expandTypes = function( types /*, ... */ ) {
     }
 
     return types;
-}
+};
 
 // Types with Little and Big endian alternatives
 makeDelegate(
