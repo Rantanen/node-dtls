@@ -32,8 +32,11 @@ HandshakeBuilder.prototype.createHandshakes = function( message ) {
     var remainingBuffer = buffer;
 
     // Create the fragments
+    // Make sure there is at least one fragment even if body is 0 bytes.
     var offset = 0;
-    while( remainingBuffer.length ) {
+    var first = true;
+    while( first || remainingBuffer.length ) {
+        first = false;
 
         // Create each handshake message and insert the fragment into it.
         var fragmentSize = Math.min( this.packetLength, remainingBuffer.length );

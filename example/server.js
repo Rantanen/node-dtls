@@ -2,6 +2,12 @@
 "use strict";
 
 var dtls = require( '../' );
+var fs = require( 'fs' );
 
-var socket = dtls.createSocket( 'udp4' );
+var pem = fs.readFileSync( 'server.pem' );
+
+var socket = dtls.createSocket({
+    type: 'udp4',
+    cert: pem
+});
 socket.bind( 4433 );

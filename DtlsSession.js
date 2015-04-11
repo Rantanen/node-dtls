@@ -6,27 +6,31 @@ var crypto = require( 'crypto' );
 
 var dtls = require( './dtls' );
 var DtlsRecordLayer = require( './DtlsRecordLayer' );
+var HandshakeBuilder = require( './HandshakeBuilder' );
 
-var DtlsPlaintext = require( './packets/DtlsPlaintext' );
 var DtlsHandshake = require( './packets/DtlsHandshake' );
-var DtlsServerHello = require( './packets/DtlsServerHello' );
+
 var DtlsClientHello = require( './packets/DtlsClientHello' );
-var DtlsExtension = require( './packets/DtlsExtension' );
 var DtlsHelloVerifyRequest = require( './packets/DtlsHelloVerifyRequest' );
+var DtlsServerHello = require( './packets/DtlsServerHello' );
+var DtlsCertificate = require( './packets/DtlsCertificate' );
+var DtlsServerHelloDone = require( './packets/DtlsServerHelloDone' );
+
+var DtlsExtension = require( './packets/DtlsExtension' );
 var DtlsProtocolVersion = require( './packets/DtlsProtocolVersion' );
 var DtlsRandom = require( './packets/DtlsRandom' );
-var HandshakeBuilder = require( './HandshakeBuilder' );
 
 var SessionState = {
     uninitialized: 0,
     sendHello: 1,
 };
 
-var DtlsSession = function( dgram, rinfo ) {
+var DtlsSession = function( dgram, rinfo, keys ) {
     log.info( 'New session' );
 
     this.dgram = dgram;
     this.rinfo = rinfo;
+    this.keys = keys;
 
     this.state = SessionState.uninitialized;
     this.recordLayer = new DtlsRecordLayer( dgram, rinfo );
@@ -126,7 +130,7 @@ DtlsSession.prototype.actions[ SessionState.sendHello ] = function() {
         serverVersion: this.serverVersion,
         random: new DtlsRandom(),
         sessionId: new Buffer(0),
-        cipherSuite: 0x0033,
+        cipherSuite: 0x0035,
         compressionMethod: 0,
         extensions: [
             new DtlsExtension({
@@ -136,67 +140,20 @@ DtlsSession.prototype.actions[ SessionState.sendHello ] = function() {
         ]
     });
 
+    var certificate = new DtlsCertificate({
+        certificateList: [ this.keys.certificate ]
+    });
+
+    var helloDone = new DtlsServerHelloDone();
+
     log.info( 'Sending ServerHello' );
-    var handshakes = this.handshakeBuilder.createHandshakes( serverHello );
+    var handshakes = this.handshakeBuilder.createHandshakes([
+        serverHello,
+        certificate,
+        helloDone
+    ]);
     this.recordLayer.send( handshakes );
 
 };
-
-    /*
-    var payload, type;
-    if( clientHello.cookie.length === 0 ) {
-
-        var cookieVerify = new DtlsHelloVerifyRequest();
-        cookieVerify.serverVersion = { major: 0xfe, minor: 0xff };
-        cookieVerify.cookie = new Buffer([ 0x01, 0x02, 0x03, 0x04 ]);
-
-        payload = cookieVerify.toBuffer();
-        type = 3;
-
-    } else {
-
-        var serverHello = new DtlsServerHello();
-        serverHello.serverVersion = { major: 0xfe, minor: 0xff };
-        serverHello.random = new DtlsRandom();
-        serverHello.random.generate();
-        serverHello.sessionId = new Buffer(0);
-        serverHello.cipherSuite = 0x0033;
-        serverHello.compressionMethod = 0;
-        serverHello.extensions = [ new DtlsExtension() ];
-        serverHello.extensions[0].extensionType = 0x000f;
-        serverHello.extensions[0].extensionData = new Buffer([ 0x01 ]);
-
-        type = dtls.HandshakeType.serverHello;
-        payload = serverHello.toBuffer();
-    }
-
-    var responseHandshake = new DtlsHandshake();
-    responseHandshake.msgType = type;
-    responseHandshake.messageSeq = this.messageSeq++;
-    responseHandshake.length = payload.length;
-    responseHandshake.fragmentOffset = 0;
-    responseHandshake.body = payload;
-
-    var handshakeBuffer = responseHandshake.toBuffer();
-
-    var plaintext = new DtlsPlaintext();
-    plaintext.type = dtls.MessageType.handshake;
-    plaintext.version = { major: 0xfe, minor: 0xff };
-    plaintext.epoch = 0;
-    plaintext.sequenceNumber = new Buffer([ 0x00, 0x00, 0x00, 0x00, 0x00, this.sequence++ ]);
-    plaintext.fragment = handshakeBuffer;
-
-    var response = plaintext.toBuffer();
-    this.dgram.send(
-        response,
-        0, response.length,
-        this.rinfo.port, this.rinfo.address,
-        function( err ) {
-
-            if( err )
-                console.log( err );
-    });
-};
-*/
 
 module.exports = DtlsSession;
