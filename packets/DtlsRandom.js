@@ -25,4 +25,14 @@ DtlsRandom.prototype.generate = function() {
     this.randomBytes = crypto.randomBytes( 28 );
 };
 
+DtlsRandom.prototype.getBytes = function() {
+
+    if( this.bytes ) return this.bytes;
+
+    this.bytes = new Buffer( 32 );
+    this.bytes.writeUInt32BE( this.gmtUnixTime, 0 );
+    this.randomBytes.copy( this.bytes, 4 );
+    return this.bytes;
+};
+
 module.exports = DtlsRandom;

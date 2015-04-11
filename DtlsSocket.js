@@ -2,19 +2,15 @@
 "use strict";
 
 var DtlsSession = require( './DtlsSession' );
-var certificateUtilities = require( './certificateUtilities' );
+var KeyContext = require( './KeyContext' );
 
 var DtlsSocket = function( dgramSocket, options ) {
 
-    if( options.cert ) {
-        this.keys = certificateUtilities.extractKeys( options.cert );
-    }
+    this.dgram = dgramSocket;
+    this.keyContext = new KeyContext( options );
 
     this.sessions = {};
 
-    this.dgram = dgramSocket;
-    //this.assembler = new DtlsRecordReader( this.dgram ); 
-    //this.assembler.on( 'message', this._onMessage.bind( this ) );
     this.dgram.on( 'message', this._onMessage.bind( this ) );
 };
 
@@ -32,7 +28,7 @@ DtlsSocket.createSocket = function( options, callback ) {
 };
 
 DtlsSocket.prototype.bind = function( port ) {
-    if( !this.keys )
+    if( !this.keyContext )
         throw new Error(
             'Cannot act as a server without a certificate. ' +
             'Use options.cert to specify certificate.' );
@@ -45,7 +41,7 @@ DtlsSocket.prototype._onMessage = function( message, rinfo ) {
     var sessionKey = rinfo.address + ':' + rinfo.port;
     var session = this.sessions[ sessionKey ];
     if( !session ) {
-        this.sessions[ sessionKey ] = session = new DtlsSession( this.dgram, rinfo, this.keys );
+        this.sessions[ sessionKey ] = session = new DtlsSession( this.dgram, rinfo, this.keyContext );
     }
 
     session.handle( message );

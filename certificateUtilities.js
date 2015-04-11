@@ -2,50 +2,44 @@
 "use strict";
 
 var Buffer = require( 'buffer' ).Buffer;
+var parseKeys = require( 'parse-asn1' );
 
-var extractKeys = function( pem ) {
+var extractCertificate = function( pem ) {
 
     if( pem instanceof Buffer )
         pem = pem.toString( 'ascii' );
 
-    var lines = pem.split( '\n' );
-
-    var beginRe = /^-----BEGIN ([A-Z ]+)-----$/;
-    var endRe = /^-----END ([A-Z ]+)-----$/;
+    var beginRe = /^-----BEGIN CERTIFICATE-----$/;
+    var endRe = /^-----END CERTIFICATE-----$/;
     var match;
 
-    var value = {};
-    var current = null;
+    var certLines = null;
+    var lines = pem.split( '\n' );
     for( var l in lines ) {
         var line = lines[l];
 
-        if( !current ) {
+        if( !certLines ) {
 
             // Seek start of a segment
             match = beginRe.exec( line );
             if( !match )
                 continue;
 
-            current = {
-                type: ( match[1] === 'PRIVATE KEY' ) ? 'key' : 'certificate',
-                value: []
-            };
-        } else if( current ) {
+            certLines = [];
+        } else if( certLines ) {
 
             match = endRe.exec( line );
-            if( match ) {
-                value[ current.type ] = new Buffer( current.value.join( '' ), 'base64' );
-                current = null;
-                continue;
-            }
+            if( match )
+                return new Buffer( certLines.join( '' ), 'base64' );
 
-            current.value.push( line );
+            certLines.push( line );
         }
     }
 
-    return value;
+    return null;
 };
 
 module.exports = {
-    extractKeys: extractKeys
+    extractKey: parseKeys,
+    extractCertificate: extractCertificate
 };

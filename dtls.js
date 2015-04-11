@@ -36,7 +36,7 @@ var dtls = {
     BulkCipherAlgorithm: {
         none: 0,
         rc4: 1,
-        des: 2,
+        des3: 2,
         aes: 3
     },
 
@@ -57,6 +57,10 @@ var dtls = {
 
     CompressionMethod: {
         none: 0
+    },
+
+    KeyExchange: {
+        rsa: 0
     }
 };
 

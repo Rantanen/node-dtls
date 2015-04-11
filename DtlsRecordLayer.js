@@ -3,36 +3,48 @@
 
 var log = require( 'logg' ).getLogger( 'dtls.DtlsRecordLayer' );
 
-var SecurityParameters = require( './SecurityParameters' );
 var SequenceNumber = require( './SequenceNumber' );
 var DtlsPlaintext = require( './packets/DtlsPlaintext' );
 var DtlsProtocolVersion = require( './packets/DtlsProtocolVersion' );
+var DtlsChangeCipherSpec = require( './packets/DtlsChangeCipherSpec' );
 var dtls = require( './dtls' );
 
-var DtlsRecordLayer = function( dgram, rinfo ) {
+var DtlsRecordLayer = function( dgram, rinfo, parameters ) {
 
     this.dgram = dgram;
     this.rinfo = rinfo;
     
-    this.currentState = new SecurityParameters();
-    this.pendingState = new SecurityParameters();
+    this.parameters = parameters;
 
-    this.epoch = 0;
+    this.localEpoch = 0;
+    this.remoteEpoch = 0;
     this.sequence = new SequenceNumber();
     this.version = new DtlsProtocolVersion({ major: ~1, minor: ~0 });
 };
 
 DtlsRecordLayer.prototype.handlePacket = function( packet ) {
 
-    if( this.currentState.bulkCipherAlgorithm ) {
+    packet = new DtlsPlaintext( packet );
+    
+    // Get the security parameters. Ignore the packet if we don't have
+    // the parameters for the epoch.
+    var parameters = this.parameters.getCurrent( packet.epoch );
+    if( !parameters ) {
+        log.error( 'Packet with unknown epoch:', packet.epoch );
+        return;
+    }
+
+    if( parameters.bulkCipherAlgorithm ) {
         packet = this.decrypt( packet );
     }
 
-    if( this.currentState.compressionAlgorithm ) {
+    if( parameters.compressionAlgorithm ) {
         packet = this.decompress( packet );
     }
 
-    packet = new DtlsPlaintext( packet );
+    if( packet.type === dtls.MessageType.changeCipherSpec ) {
+        log.info( 'Change Cipher' );
+    }
 
     return packet;
 };
