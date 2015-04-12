@@ -1,0 +1,35 @@
+{
+  "name": "node-dtls",
+  "version": "0.0.1",
+  "description": "JavaScript implementation of DTLS protocol",
+  "main": "index.js",
+  "directories": {
+    "example": "example",
+    "test": "test"
+  },
+  "dependencies": {
+    "logg": "^0.3.0",
+    "parse-asn1": "^3.0.0"
+  },
+  "devDependencies": {
+    "chai": "^2.2.0"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Rantanen/node-dtls.git"
+  },
+  "keywords": [
+    "dtls",
+    "dgram",
+    "insecurity"
+  ],
+  "author": "Mikko Rantanen",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Rantanen/node-dtls/issues"
+  },
+  "homepage": "https://github.com/Rantanen/node-dtls"
+}
