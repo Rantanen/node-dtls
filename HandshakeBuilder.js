@@ -86,8 +86,6 @@ HandshakeBuilder.prototype.fragmentHandshakes = function( packet ) {
         offset += fragmentSize;
     }
 
-    this.outgoingMessageSeq++;
-
     return packets;
 };
 

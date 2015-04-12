@@ -2,6 +2,7 @@
 "use strict";
 
 var log = require( 'logg' ).getLogger( 'dtls.DtlsRecordLayer' );
+var crypto = require( 'crypto' );
 
 var DtlsPlaintext = require( './packets/DtlsPlaintext' );
 var DtlsProtocolVersion = require( './packets/DtlsProtocolVersion' );
@@ -70,7 +71,7 @@ DtlsRecordLayer.prototype.send = function( msg ) {
         var parameters = this.parameters.getCurrent( this.sendEpoch );
         var envelope = new DtlsPlaintext({
                 type: msg[m].type,
-                version: this.parameters.pending.version || this.version,
+                version: parameters.version,
                 epoch: this.sendEpoch,
                 sequenceNumber: parameters.sendSequence.next(),
                 fragment: msg[m].getBuffer()
@@ -107,15 +108,15 @@ DtlsRecordLayer.prototype.sendInternal = function( envelopes ) {
             var buffer = envelope.getBuffer();
 
             log.info( 'Sending', plaintextTypeName, '(', buffer.length, 'bytes)' );
-                this.dgram.send( buffer,
-                    0, buffer.length,
-                    this.rinfo.port, this.rinfo.address );
+            this.dgram.send( buffer,
+                0, buffer.length,
+                this.rinfo.port, this.rinfo.address );
         }
     }.bind( this ), 500 );
 };
 
 DtlsRecordLayer.prototype.decrypt = function( packet ) {
-    var parameters = this.parameters.getCurrent( packet.epoch );
+    var parameters = this.parameters.get( packet );
 
     var iv = packet.fragment.slice( 0, parameters.recordIvLength );
     var ciphered = packet.fragment.slice( parameters.recordIvLength );
@@ -130,15 +131,8 @@ DtlsRecordLayer.prototype.decrypt = function( packet ) {
     var mac = decrypted.slice( packet.fragment.length );
 
     // Verify MAC
-    var header = new Buffer(13);
-    header.writeUInt16BE( packet.epoch, 0 );
-    packet.sequenceNumber.copy( header, 2 );
-    header.writeUInt8( packet.type, 8 );
-    header.writeInt8( packet.version.major, 9 );
-    header.writeInt8( packet.version.minor, 10 );
-    header.writeUInt16BE( packet.fragment.length, 11 );
-
-    var expectedMac = parameters.calculateMac([ header, packet.fragment ]);
+    var header = this.getMacHeader( packet );
+    var expectedMac = parameters.calculateIncomingMac([ header, packet.fragment ]);
     mac = mac.slice( 0, expectedMac.length );
     if( !mac.slice( 0, expectedMac.length ).equals( expectedMac ) ) {
         throw new Error( 'Mac mismatch: ' + expectedMac.toString( 'hex' ) + ' vs ' + mac.toString( 'hex' ) );
@@ -148,6 +142,39 @@ DtlsRecordLayer.prototype.decrypt = function( packet ) {
 };
 
 DtlsRecordLayer.prototype.encrypt = function( packet ) {
+    var parameters = this.parameters.get( packet );
+
+    // Figure out MAC
+    var iv = crypto.pseudoRandomBytes( 16 );
+    var header = this.getMacHeader( packet );
+    var mac = parameters.calculateOutgoingMac([ header, packet.fragment ]);
+
+    var cipher = parameters.getCipher( iv );
+
+    var blockSize = 16;
+    var overflow = ( iv.length, packet.fragment.length + mac.length + 1 ) % blockSize;
+    var padAmount = ( overflow === 0 ) ? 0 : ( blockSize - overflow );
+    var padding = new Buffer([ padAmount ]);
+
+    cipher.write( iv ); // The first chunk is used as IV and it's content is garbage.
+    cipher.write( packet.fragment );
+    cipher.write( mac );
+    cipher.write( padding );
+    cipher.end();
+
+    packet.fragment = cipher.read();
+};
+
+DtlsRecordLayer.prototype.getMacHeader = function( packet ) {
+    var header = new Buffer(13);
+    header.writeUInt16BE( packet.epoch, 0 );
+    packet.sequenceNumber.copy( header, 2 );
+    header.writeUInt8( packet.type, 8 );
+    header.writeInt8( packet.version.major, 9 );
+    header.writeInt8( packet.version.minor, 10 );
+    header.writeUInt16BE( packet.fragment.length, 11 );
+
+    return header;
 };
 
 module.exports = DtlsRecordLayer;

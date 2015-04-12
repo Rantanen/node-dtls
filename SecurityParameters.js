@@ -6,13 +6,14 @@ var dtls = require( './dtls' );
 var prf = require( './prf' );
 var BufferReader = require( './BufferReader' );
 var SequenceNumber = require( './SequenceNumber' );
+var DtlsProtocolVersion = require( './packets/DtlsProtocolVersion' );
 
 var log = require( 'logg' ).getLogger( 'dtls.SecurityParameters' );
 var logDigest = require( 'logg' ).getLogger( 'dtls.SecurityParameters.digest' );
 
 var SecurityParameters = function() {
 
-    this.version = null;
+    this.version = new DtlsProtocolVersion({ major: ~1, minor: ~0 });
     this.entity = dtls.ConnectionEnd.server;
 
     // Cipher suite prf
@@ -87,8 +88,16 @@ SecurityParameters.prototype.getDecipher = function( iv ) {
     return crypto.createDecipheriv( 'aes-128-cbc', this.clientWriteKey, iv );
 };
 
-SecurityParameters.prototype.calculateMac = function( buffer ) {
-    var mac = crypto.createHmac( 'sha1', this.clientWriteMacKey );
+SecurityParameters.prototype.calculateIncomingMac = function( buffer ) {
+    return this.calculateMac( this.clientWriteMacKey, buffer );
+};
+
+SecurityParameters.prototype.calculateOutgoingMac = function( buffer ) {
+    return this.calculateMac( this.serverWriteMacKey, buffer );
+};
+
+SecurityParameters.prototype.calculateMac = function( key, buffer ) {
+    var mac = crypto.createHmac( 'sha1', key );
 
     // Accept both single buffers and buffer arrays.
     if( buffer instanceof Array ) {
@@ -136,6 +145,7 @@ SecurityParameters.prototype._digestHandshake = function( msg ) {
 };
 
 SecurityParameters.prototype.getHandshakeDigest = function() {
+    log.info( 'Digesting', this.handshakeDigest.length, 'messages' );
     var hash = prf( this.version ).createHash();
     this.handshakeDigest.forEach( function(d) {
         hash.update( d );

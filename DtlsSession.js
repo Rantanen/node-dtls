@@ -1,6 +1,8 @@
 
 "use strict";
 
+var util = require( 'util' );
+var EventEmitter = require( 'events' ).EventEmitter;
 var log = require( 'logg' ).getLogger( 'dtls.DtlsSession' );
 var crypto = require( 'crypto' );
 var constants = require( 'constants' );
@@ -52,6 +54,7 @@ var DtlsSession = function( dgram, rinfo, keyContext ) {
     this.sequence = 0;
     this.messageSeq = 0;
 };
+util.inherits( DtlsSession, EventEmitter );
 
 DtlsSession.prototype.handle = function( buffer ) {
     var self = this;
@@ -112,6 +115,11 @@ DtlsSession.prototype.process_changeCipherSpec = function( message ) {
     log.info( 'Changed Cipher Spec' );
 };
 
+DtlsSession.prototype.process_applicationData = function( message ) {
+    log.info( 'Received application data: ', message.fragment );
+    this.emit( 'message', message.fragment );
+};
+
 DtlsSession.prototype.process_handshake_clientHello = function( handshake, message ) {
 
     var clientHello = new DtlsClientHello( handshake.body );
@@ -131,6 +139,7 @@ DtlsSession.prototype.process_handshake_clientHello = function( handshake, messa
 
     } else {
         log.fine( 'ClientHello received. Client version:', ~clientHello.clientVersion.major + '.' + ~clientHello.clientVersion.minor );
+        this.parameters.get( message ).version = clientHello.clientVersion;
         this.parameters.pending.clientRandom = clientHello.random.getBytes();
         this.parameters.pending.version = clientHello.clientVersion;
 
@@ -180,8 +189,15 @@ DtlsSession.prototype.process_handshake_finished = function( handshake, message 
             finished.verifyData.length
         );
 
-    if( finished.verifyData.equals( expected ) )
-        this.changeState( SessionState.clientFinished );
+    if( !finished.verifyData.equals( expected ) )
+        return;
+
+    // process_handshake takes care of adding all handshake messages to the
+    // pending SecurityParameters digest. However this message is still part of
+    // the previous handshake so we need to add it manually to that digest.
+    parameters.digestHandshake( handshake.getBuffer() );
+
+    this.changeState( SessionState.clientFinished );
 };
 
 DtlsSession.prototype.invokeAction = function( state ) {
@@ -249,19 +265,18 @@ DtlsSession.prototype.actions[ SessionState.clientFinished ] = function() {
         this.recordLayer.sendEpoch + 1 );
     var prf_func = prf( parameters.version );
 
-    var handshakes = this.handshakeBuilder.createHandshakes([
-        new DtlsFinished({
-            verifyData: prf_func(
-                parameters.masterKey,
-                "server finished",
-                parameters.getHandshakeDigest(), 12
-            )
-        })
-    ]);
+    var finished = new DtlsFinished({
+        verifyData: prf_func(
+            parameters.masterKey,
+            "server finished",
+            parameters.getHandshakeDigest(), 12
+        )});
 
+    var handshakes = this.handshakeBuilder.createHandshakes([ finished ]);
     handshakes = this.handshakeBuilder.fragmentHandshakes( handshakes );
     handshakes.unshift( changeCipherSpec );
 
+    log.info( 'Verify data:', finished.verifyData );
     log.info( 'Sending ChangeCipherSpec, Finished' );
     var messages = this.recordLayer.send( handshakes );
 };
