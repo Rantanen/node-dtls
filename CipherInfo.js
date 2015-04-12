@@ -50,7 +50,7 @@ var mac = {
 
 var suites = {
     TLS_RSA_WITH_AES_128_CBC_SHA: new CipherSuite(
-        0x002f, dtls.KeyExchange.rsa, cipher.aes_128_cbc, mac.sha256 ),
+        0x002f, dtls.KeyExchange.rsa, cipher.aes_128_cbc, mac.sha ),
 };
 
 for( var s in suites ) {

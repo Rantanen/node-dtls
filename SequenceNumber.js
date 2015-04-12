@@ -23,7 +23,7 @@ SequenceNumber.prototype.next = function() {
     // Always update the low 32
     this.current.writeUInt32BE( this.low32, 2 );
 
-    return this.current;
+    return new Buffer( this.current );
 };
 
 module.exports = SequenceNumber;

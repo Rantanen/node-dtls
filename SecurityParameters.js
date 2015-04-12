@@ -1,10 +1,16 @@
 
 "use strict";
 
+var crypto = require( 'crypto' );
 var dtls = require( './dtls' );
+var prf = require( './prf' );
+var BufferReader = require( './BufferReader' );
+
+var log = require( 'logg' ).getLogger( 'dtls.SecurityParameters' );
 
 var SecurityParameters = function() {
 
+    this.version = null;
     this.entity = dtls.ConnectionEnd.server;
 
     // Cipher suite prf
@@ -44,6 +50,39 @@ SecurityParameters.prototype.setFrom = function( suite ) {
     this.macAlgorithm = suite.mac.algorithm;
     this.macLength = suite.mac.length;
     this.macKeyLength = suite.mac.keyLength;
+};
+
+SecurityParameters.prototype.init = function() {
+
+    var keyBlock = prf( this.version )(
+        this.masterKey,
+        "key expansion",
+        Buffer.concat([ this.serverRandom, this.clientRandom ]),
+        this.macKeyLength * 2 + this.encKeyLength * 2 + this.recordIvLength * 2 );
+
+    var bufferReader = new BufferReader( keyBlock );
+    this.clientWriteMacKey = bufferReader.readBytes( this.macKeyLength );
+    this.serverWriteMacKey = bufferReader.readBytes( this.macKeyLength );
+    this.clientWriteKey = bufferReader.readBytes( this.encKeyLength );
+    this.serverWriteKey = bufferReader.readBytes( this.encKeyLength );
+    this.clientWriteIv = bufferReader.readBytes( this.recordIvLength );
+    this.serverWriteIv = bufferReader.readBytes( this.recordIvLength );
+
+    log.info( 'Key content' );
+    log.info( 'C-Mac:', this.clientWriteMacKey );
+    log.info( 'S-Mac:', this.serverWriteMacKey );
+    log.info( 'C-Key:', this.clientWriteKey );
+    log.info( 'S-Key:', this.serverWriteKey );
+    log.info( 'C-IV: ', this.clientWriteIv );
+    log.info( 'S-IV: ', this.serverWriteIv );
+};
+
+SecurityParameters.prototype.getDecipher = function( iv ) {
+    return crypto.createDecipheriv( 'aes-128-cbc', this.clientWriteKey, iv );
+};
+
+SecurityParameters.prototype.getCipher = function( iv ) {
+    return crypto.createCipheriv( 'aes-128-cbc', this.serverWriteKey, iv );
 };
 
 module.exports = SecurityParameters;

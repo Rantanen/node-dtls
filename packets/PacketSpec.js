@@ -50,13 +50,10 @@ PacketSpec.normalize = function( item ) {
     return item;
 };
 
-PacketSpec.prototype.read = function( data, obj ) {
+PacketSpec.prototype.read = function( reader, obj ) {
 
-    var reader;
-    if( data instanceof BufferReader )
-        reader = data;
-    else 
-        reader = new BufferReader( data );
+    if( reader instanceof Buffer )
+        reader = new BufferReader( reader );
 
     for( var s in this.spec ) {
         var item = this.spec[s];

@@ -40,6 +40,10 @@ var p_sha256 = p.bind( null, 'sha256' );
 var prf = {};
 
 prf[ ~0 ] = prf[ ~1 ] = function( secret, label, seed, length ) {
+    console.log( 'Secret: ' + secret.toString( 'hex' ) );
+    console.log( 'Label: ' + label );
+    console.log( 'Seed: ' + seed.toString( 'hex' ) );
+    console.log( 'Length: ' + length );
 
     var splitLength = Math.ceil( secret.length / 2 );
     var md5Secret = secret.slice( 0, splitLength );

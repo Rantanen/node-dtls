@@ -21,6 +21,8 @@ var DtlsCertificate = require( './packets/DtlsCertificate' );
 var DtlsServerHelloDone = require( './packets/DtlsServerHelloDone' );
 var DtlsClientKeyExchange_rsa = require( './packets/DtlsClientKeyExchange_rsa' );
 var DtlsPreMasterSecret = require( './packets/DtlsPreMasterSecret' );
+var DtlsChangeCipherSpec = require( './packets/DtlsChangeCipherSpec' );
+var DtlsFinished = require( './packets/DtlsFinished' );
 
 var DtlsExtension = require( './packets/DtlsExtension' );
 var DtlsProtocolVersion = require( './packets/DtlsProtocolVersion' );
@@ -29,6 +31,7 @@ var DtlsRandom = require( './packets/DtlsRandom' );
 var SessionState = {
     uninitialized: 0,
     sendHello: 1,
+    handshakeDone: 2,
 };
 
 var DtlsSession = function( dgram, rinfo, keyContext ) {
@@ -43,30 +46,26 @@ var DtlsSession = function( dgram, rinfo, keyContext ) {
     this.recordLayer = new DtlsRecordLayer( dgram, rinfo, this.parameters );
 
     this.handshakeBuilder = new HandshakeBuilder();
+    this.handshakeMessages = [];
 
     this.sequence = 0;
     this.messageSeq = 0;
 };
 
-DtlsSession.prototype.serverVersion = new DtlsProtocolVersion({
-    major: ~1,
-    minor: ~0
-});
+DtlsSession.prototype.handle = function( buffer ) {
+    var self = this;
 
-DtlsSession.prototype.handle = function( packet ) {
+    log.fine( 'Incoming packet; length:', buffer.length );
+    this.recordLayer.getPackets( buffer, function( packet ) {
 
-    log.fine( 'Incoming packet; length:', packet.length );
-    var message = this.recordLayer.handlePacket( packet );
-    if( !message )
-        return;
+        var msgType = dtls.MessageTypeName[ packet.type ];
+        var handler = self[ 'process_' + msgType ];
 
-    var msgType = dtls.MessageTypeName[ message.type ];
-    var handler = this[ 'process_' + msgType ];
+        if( !handler )
+            return log.error( 'Handler not found for', msgType, 'message' );
 
-    if( !handler )
-        return log.error( 'Handler not found for', msgType, 'message' );
-
-    handler.call( this, message );
+        handler.call( self, packet );
+    });
 };
 
 DtlsSession.prototype.changeState = function( state ) {
@@ -80,6 +79,7 @@ DtlsSession.prototype.changeState = function( state ) {
 };
 
 DtlsSession.prototype.process_handshake = function( message ) {
+    this.handshakeMessages.push( message.fragment );
 
     // Enqueue the current handshake.
     var newHandshake = new DtlsHandshake( message.fragment );
@@ -114,7 +114,7 @@ DtlsSession.prototype.process_handshake_clientHello = function( handshake ) {
 
         this.cookie = crypto.pseudoRandomBytes( 16 );
         var cookieVerify = new DtlsHelloVerifyRequest({
-            serverVersion: this.serverVersion,
+            serverVersion: clientHello.clientVersion,
             cookie: this.cookie
         });
 
@@ -124,8 +124,9 @@ DtlsSession.prototype.process_handshake_clientHello = function( handshake ) {
         this.recordLayer.send( handshakes );
 
     } else {
-        log.fine( 'ClientHello received.' );
+        log.fine( 'ClientHello received. Client version:', ~clientHello.clientVersion.major + '.' + ~clientHello.clientVersion.minor );
         this.parameters.pending.clientRandom = clientHello.random.getBytes();
+        this.parameters.pending.version = clientHello.clientVersion;
         this.changeState( SessionState.sendHello );
     }
 };
@@ -133,7 +134,6 @@ DtlsSession.prototype.process_handshake_clientHello = function( handshake ) {
 DtlsSession.prototype.process_handshake_clientKeyExchange = function( handshake ) {
 
     var clientKeyExchange = new DtlsClientKeyExchange_rsa( handshake.body );
-    console.log( clientKeyExchange );
 
     var preMasterSecret = crypto.privateDecrypt({
             key: this.keyContext.key,
@@ -142,12 +142,15 @@ DtlsSession.prototype.process_handshake_clientKeyExchange = function( handshake 
 
     //preMasterSecret = new DtlsPreMasterSecret( preMasterSecret );
 
-    this.parameters.pending.masterKey = prf( this.serverVersion )(
+    this.parameters.pending.preMasterKey = preMasterSecret;
+    this.parameters.pending.masterKey = prf( this.parameters.pending.version )(
         preMasterSecret,
         "master secret", 
         Buffer.concat([
             this.parameters.pending.clientRandom,
             this.parameters.pending.serverRandom ]), 48 );
+
+    //this.changeState( SessionState.handshakeDone );
 };
 
 DtlsSession.prototype.invokeAction = function( state ) {
@@ -164,7 +167,7 @@ DtlsSession.prototype.actions[ SessionState.sendHello ] = function() {
     var cipher = CipherInfo.TLS_RSA_WITH_AES_128_CBC_SHA;
 
     var serverHello = new DtlsServerHello({
-        serverVersion: this.serverVersion,
+        serverVersion: this.parameters.pending.version,
         random: new DtlsRandom(),
         sessionId: new Buffer(0),
         cipherSuite: cipher.id,
@@ -186,7 +189,7 @@ DtlsSession.prototype.actions[ SessionState.sendHello ] = function() {
 
     var helloDone = new DtlsServerHelloDone();
 
-    log.info( 'Sending ServerHello' );
+    log.info( 'Sending ServerHello, Certificate, HelloDone' );
     var handshakes = this.handshakeBuilder.createHandshakes([
         serverHello,
         certificate,
@@ -194,6 +197,25 @@ DtlsSession.prototype.actions[ SessionState.sendHello ] = function() {
     ]);
     this.recordLayer.send( handshakes );
 
+};
+
+DtlsSession.prototype.actions[ SessionState.handshakeDone ] = function() {
+
+    var changeCipherSpec = new DtlsChangeCipherSpec({ value: 1 });
+    var handshakes = this.handshakeBuilder.createHandshakes([
+        new DtlsFinished({
+            verifyData: prf( this.parameters.pending.version )(
+                this.parameters.pending.masterKey,
+                "server finished",
+                Buffer.concat( this.handshakeMessages )
+            )
+        })
+    ]);
+
+    handshakes.unshift( changeCipherSpec );
+
+    log.info( 'Sending ChangeCipherSpec, Finished' );
+    this.recordLayer.send( handshakes );
 };
 
 module.exports = DtlsSession;

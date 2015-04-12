@@ -8,6 +8,7 @@ var DtlsPlaintext = require( './packets/DtlsPlaintext' );
 var DtlsProtocolVersion = require( './packets/DtlsProtocolVersion' );
 var DtlsChangeCipherSpec = require( './packets/DtlsChangeCipherSpec' );
 var dtls = require( './dtls' );
+var BufferReader = require( './BufferReader' );
 
 var DtlsRecordLayer = function( dgram, rinfo, parameters ) {
 
@@ -22,31 +23,39 @@ var DtlsRecordLayer = function( dgram, rinfo, parameters ) {
     this.version = new DtlsProtocolVersion({ major: ~1, minor: ~0 });
 };
 
-DtlsRecordLayer.prototype.handlePacket = function( packet ) {
+DtlsRecordLayer.prototype.getPackets = function( buffer, callback ) {
 
-    packet = new DtlsPlaintext( packet );
-    
-    // Get the security parameters. Ignore the packet if we don't have
-    // the parameters for the epoch.
-    var parameters = this.parameters.getCurrent( packet.epoch );
-    if( !parameters ) {
-        log.error( 'Packet with unknown epoch:', packet.epoch );
-        return;
+    var reader = new BufferReader( buffer );
+    while( reader.available() ) {
+
+        var packet = new DtlsPlaintext( reader );
+        
+        // Get the security parameters. Ignore the packet if we don't have
+        // the parameters for the epoch.
+        var parameters = this.parameters.getCurrent( packet.epoch );
+        if( !parameters ) {
+            log.error( 'Packet with unknown epoch:', packet.epoch );
+            continue;
+        }
+
+        if( parameters.bulkCipherAlgorithm ) {
+            this.decrypt( packet );
+        }
+
+        if( parameters.compressionAlgorithm ) {
+            this.decompress( packet );
+        }
+
+        if( packet.type === dtls.MessageType.changeCipherSpec ) {
+            if( packet.epoch !== this.localEpoch )
+                continue;
+
+            this.parameters.change();
+            this.localEpoch = this.parameters.current;
+        }
+
+        callback( packet );
     }
-
-    if( parameters.bulkCipherAlgorithm ) {
-        packet = this.decrypt( packet );
-    }
-
-    if( parameters.compressionAlgorithm ) {
-        packet = this.decompress( packet );
-    }
-
-    if( packet.type === dtls.MessageType.changeCipherSpec ) {
-        log.info( 'Change Cipher' );
-    }
-
-    return packet;
 };
 
 DtlsRecordLayer.prototype.resendLast = function() {
@@ -55,33 +64,68 @@ DtlsRecordLayer.prototype.resendLast = function() {
 
 DtlsRecordLayer.prototype.send = function( msg ) {
 
-    this.lastOutgoing = msg;
+    var envelopes = [];
+    if( !( msg instanceof Array ) )
+        msg = [msg];
 
-    if( !( msg instanceof Array ))
-        return this.sendInternal( msg );
+    for( var m in msg ) {
+        var envelope = new DtlsPlaintext({
+                type: msg[m].type,
+                version: this.parameters.pending.version || this.version,
+                epoch: this.remoteEpoch,
+                sequenceNumber: this.sequence.next(),
+                fragment: msg[m].getBuffer()
+            });
 
-    for( var m in msg )
-        this.sendInternal( msg[m] );
+        var parameters = this.parameters.getCurrent( this.remoteEpoch );
+        if( !parameters ) {
+            log.error( 'Local epoch parameters not found:', this.remoteEpoch );
+            return;
+        }
+
+        if( parameters.bulkCipherAlgorithm ) {
+            this.encrypt( envelope );
+        }
+
+        envelopes.push( envelope );
+        if( msg[m].type === dtls.MessageType.changeCipherSpec )
+            this.remoteEpoch++;
+    }
+
+    this.lastOutgoing = envelopes;
+
+    this.sendInternal( envelopes );
 };
 
-DtlsRecordLayer.prototype.sendInternal = function( msg ) {
+DtlsRecordLayer.prototype.sendInternal = function( envelopes ) {
 
-    var plaintext = new DtlsPlaintext({
-        type: msg.type,
-        version: this.version,
-        epoch: this.epoch,
-        sequenceNumber: this.sequence.next(),
-        fragment: msg.getBuffer()
-    });
+    for( var e in envelopes ) {
+        var envelope = envelopes[e];
 
-    var plaintextTypeName = dtls.MessageTypeName[ plaintext.type ];
-    log.info( 'Sending', plaintextTypeName );
+        var plaintextTypeName = dtls.MessageTypeName[ envelope.type ];
 
-    var buffer = plaintext.getBuffer();
+        var buffer = envelope.getBuffer();
 
-    this.dgram.send( buffer,
-        0, buffer.length,
-        this.rinfo.port, this.rinfo.address );
+        log.info( 'Sending', plaintextTypeName, '(', buffer.length, 'bytes)' );
+        this.dgram.send( buffer,
+            0, buffer.length,
+            this.rinfo.port, this.rinfo.address );
+    }
+};
+
+DtlsRecordLayer.prototype.decrypt = function( packet ) {
+    var parameters = this.parameters.getCurrent( packet.epoch );
+
+    var iv = packet.fragment.slice( 0, parameters.recordIvLength );
+    var ciphered = packet.fragment.slice( parameters.recordIvLength );
+
+    var cipher = parameters.getDecipher( iv );
+    packet.fragment = Buffer.concat([
+        cipher.update( ciphered ),
+        cipher.final() ]);
+};
+
+DtlsRecordLayer.prototype.encrypt = function( packet ) {
 };
 
 module.exports = DtlsRecordLayer;

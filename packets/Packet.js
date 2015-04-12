@@ -1,9 +1,11 @@
 
 "use strict";
 
+var BufferReader = require( '../BufferReader' );
+
 var Packet = function( data ) {
 
-    if( data instanceof Buffer )
+    if( data instanceof Buffer || data instanceof BufferReader )
         return this.read( data );
 
     for( var d in data ) {

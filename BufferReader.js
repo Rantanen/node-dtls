@@ -27,6 +27,10 @@ BufferReader.prototype.remaining = function() {
     return this.buffer.slice( this.offset );
 };
 
+BufferReader.prototype.available = function() {
+    return this.offset < this.buffer.length;
+};
+
 var makeDelegate = function( type, size ) {
     if( type instanceof Object ) {
         return Object.keys( type ).forEach( function( k ) {
@@ -42,7 +46,7 @@ var makeDelegate = function( type, size ) {
         this.offset += size;
         return value;
     };
-}
+};
 
 var expandTypes = function( types /*, ... */ ) {
 
@@ -60,7 +64,7 @@ var expandTypes = function( types /*, ... */ ) {
     }
 
     return types;
-}
+};
 
 // Types with Little and Big endian alternatives
 makeDelegate(
