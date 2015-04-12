@@ -15,6 +15,10 @@ SecurityParameterContainer.prototype.getCurrent = function( epoch ) {
     return this.parameters[ epoch ];
 };
 
+SecurityParameterContainer.prototype.get = function( packet ) {
+    return this.parameters[ packet.epoch ];
+};
+
 SecurityParameterContainer.prototype.change = function( epoch ) {
     this.current++;
     this.pending.init();

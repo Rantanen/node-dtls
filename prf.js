@@ -2,7 +2,20 @@
 "use strict";
 var crypto = require( 'crypto' );
 
-var hash = function( algo, secret, text ) {
+var createPrf = function( algorithm, func ) {
+
+    var prf_func = func;
+    prf_func.createHash = function() { return crypto.createHash( algorithm ); };
+    return prf_func;
+};
+
+var hash = function( algo, text ) {
+    var sum = crypto.createHash( algo );
+    sum.update( text );
+    return sum.digest ();
+};
+
+var hmac_hash = function( algo, secret, text ) {
 
     var sum = crypto.createHmac( algo, secret );
     sum.update( text );
@@ -11,7 +24,7 @@ var hash = function( algo, secret, text ) {
 
 var p = function( hashName, secret, seed, length ) {
 
-    var hash_x = hash.bind( null, hashName );
+    var hash_x = hmac_hash.bind( null, hashName );
 
     length = length || 32; 
     var a = function(n) {
@@ -30,7 +43,7 @@ var p = function( hashName, secret, seed, length ) {
         hashes.push( hashBytes );
     }
 
-    return Buffer.concat( hashes, length );
+    return Buffer.concat( hashes, length ).slice( 0, length );
 };
 
 var p_md5 = p.bind( null, 'md5' );
@@ -39,7 +52,7 @@ var p_sha256 = p.bind( null, 'sha256' );
 
 var prf = {};
 
-prf[ ~0 ] = prf[ ~1 ] = function( secret, label, seed, length ) {
+prf[ ~0 ] = prf[ ~1 ] = createPrf( 'sha256', function( secret, label, seed, length ) {
     console.log( 'Secret: ' + secret.toString( 'hex' ) );
     console.log( 'Label: ' + label );
     console.log( 'Seed: ' + seed.toString( 'hex' ) );
@@ -58,15 +71,15 @@ prf[ ~0 ] = prf[ ~1 ] = function( secret, label, seed, length ) {
         md5Bytes[i] = md5Bytes[i] ^ shaBytes[i];
 
     return md5Bytes;
-};
+});
 
-prf[ ~2 ] = function( secret, label, seed, length ) {
+prf[ ~2 ] = createPrf( 'sha256', function( secret, label, seed, length ) {
 
     return p_sha256(
         secret,
         Buffer.concat([ new Buffer( label ), seed ]),
         length );
-};
+});
 
 module.exports = function( version ) {
     if( version.major !== ~1 )

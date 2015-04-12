@@ -5,8 +5,10 @@ var crypto = require( 'crypto' );
 var dtls = require( './dtls' );
 var prf = require( './prf' );
 var BufferReader = require( './BufferReader' );
+var SequenceNumber = require( './SequenceNumber' );
 
 var log = require( 'logg' ).getLogger( 'dtls.SecurityParameters' );
+var logDigest = require( 'logg' ).getLogger( 'dtls.SecurityParameters.digest' );
 
 var SecurityParameters = function() {
 
@@ -34,6 +36,10 @@ var SecurityParameters = function() {
     this.masterKey = null;
     this.clientRandom = null;
     this.serverRandom = null;
+
+    this.handshakeMessages = [];
+
+    this.sendSequence = new SequenceNumber();
 };
 
 SecurityParameters.prototype.setFrom = function( suite ) {
@@ -83,6 +89,48 @@ SecurityParameters.prototype.getDecipher = function( iv ) {
 
 SecurityParameters.prototype.getCipher = function( iv ) {
     return crypto.createCipheriv( 'aes-128-cbc', this.serverWriteKey, iv );
+};
+
+SecurityParameters.prototype.resetHandshakeDigest = function() {
+    this.handshakeDigest = [];
+};
+
+SecurityParameters.prototype.digestHandshake = function( msg ) {
+    if( !this.handshakeDigest )
+        return;
+
+    if( msg instanceof Array )
+        for( var m in msg )
+            this._digestHandshake( msg[m] );
+    else
+        this._digestHandshake( msg );
+};
+
+SecurityParameters.prototype._digestHandshake = function( msg ) {
+    if( msg.fragment )
+        msg = msg.fragment;
+
+    if( !( msg instanceof Buffer ) )
+        throw new Error( 'Message must be a buffer or containing buffer fragment.' );
+
+    logDigest.fine( 'Handshake digest:' );
+    for( var i = 0; i < msg.length; i += 16 ) {
+        logDigest.fine( i.toString( 16 ), '\t', msg.slice( i, Math.min( msg.length, i + 16 ) ) );
+    }
+    logDigest.fine( 'Length:', msg.length );
+
+    this.handshakeDigest.push( msg );
+};
+
+SecurityParameters.prototype.getHandshakeDigest = function() {
+    var hash = prf( this.version ).createHash();
+    this.handshakeDigest.forEach( function(d) {
+        hash.update( d );
+    });
+
+    var digest = hash.digest();
+    logDigest.fine( 'DIGEST:', digest.toString( 'hex' ) );
+    return digest;
 };
 
 module.exports = SecurityParameters;

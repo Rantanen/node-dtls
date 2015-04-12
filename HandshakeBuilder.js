@@ -1,7 +1,7 @@
 
 "use strict";
 
-var log = require( 'logg' ).getLogger( 'dtsl.HandshakeBuilder' );
+var log = require( 'logg' ).getLogger( 'dtls.HandshakeBuilder' );
 
 var DtlsHandshake = require( './packets/DtlsHandshake' );
 
@@ -29,33 +29,66 @@ HandshakeBuilder.prototype.createHandshakes = function( message ) {
     }
 
     var buffer = message.getBuffer();
-    var remainingBuffer = buffer;
+    var handshake = new DtlsHandshake({
+        msgType: message.messageType,
+        length: buffer.length,
+        messageSeq: this.outgoingMessageSeq,
+        fragmentOffset: 0,
+        body: buffer
+    });
+    this.outgoingMessageSeq++;
+
+    return handshake;
+};
+
+HandshakeBuilder.prototype.fragmentHandshakes = function( packet ) {
+
+    var packets = [];
+
+    // If parameter was an array, recurse into this function with single values.
+    if( packet instanceof Array ) {
+        for( var p in packet )
+            packets = packets.concat( this.fragmentHandshakes( packet[p] ) );
+        return packets;
+    }
+
+    if( packet instanceof DtlsHandshake )
+        packet = packet.getBuffer();
+
+    // Get the raw body.
+    // The header before body includes:
+    // msgType        : uint8  (1 byte),
+    // length         : uint24 (3 bytes),
+    // messageSeq     : uint16 (2 bytes),
+    // fragmentOffset : uint24 (3 bytes),
+    // bodyLength     : uint24 (3 bytes)
+    var remainingBody = packet.slice( 1 + 3 + 2 + 3 + 3 );
 
     // Create the fragments
     // Make sure there is at least one fragment even if body is 0 bytes.
     var offset = 0;
     var first = true;
-    while( first || remainingBuffer.length ) {
+    while( first || remainingBody.length ) {
         first = false;
 
         // Create each handshake message and insert the fragment into it.
-        var fragmentSize = Math.min( this.packetLength, remainingBuffer.length );
-        handshakes.push( new DtlsHandshake({
-            msgType: message.messageType,
-            length: buffer.length,
-            messageSeq: this.outgoingMessageSeq,
+        var fragmentSize = Math.min( this.packetLength, remainingBody.length );
+        packets.push( new DtlsHandshake({
+            msgType: packet.readUInt8( 0 ),
+            length: packet.readUInt32BE( 0 ) & 0x00ffffff,
+            messageSeq: packet.readUInt16BE( 4 ),
             fragmentOffset: offset,
-            body: remainingBuffer.slice( 0, fragmentSize )
+            body: remainingBody.slice( 0, fragmentSize )
         }));
 
-        // Advance the buffer
-        remainingBuffer = remainingBuffer.slice( fragmentSize );
+        // Advance the packet
+        remainingBody = remainingBody.slice( fragmentSize );
         offset += fragmentSize;
     }
 
     this.outgoingMessageSeq++;
 
-    return handshakes;
+    return packets;
 };
 
 HandshakeBuilder.prototype.add = function( handshake ) {
