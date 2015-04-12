@@ -87,6 +87,19 @@ SecurityParameters.prototype.getDecipher = function( iv ) {
     return crypto.createDecipheriv( 'aes-128-cbc', this.clientWriteKey, iv );
 };
 
+SecurityParameters.prototype.calculateMac = function( buffer ) {
+    var mac = crypto.createHmac( 'sha1', this.clientWriteMacKey );
+
+    // Accept both single buffers and buffer arrays.
+    if( buffer instanceof Array ) {
+        buffer.forEach( function(b) { mac.update(b); } );
+    } else {
+        mac.update( buffer );
+    }
+
+    return mac.digest();
+};
+
 SecurityParameters.prototype.getCipher = function( iv ) {
     return crypto.createCipheriv( 'aes-128-cbc', this.serverWriteKey, iv );
 };

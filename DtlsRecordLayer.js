@@ -120,10 +120,31 @@ DtlsRecordLayer.prototype.decrypt = function( packet ) {
     var iv = packet.fragment.slice( 0, parameters.recordIvLength );
     var ciphered = packet.fragment.slice( parameters.recordIvLength );
 
+    // Decrypt the fragment
     var cipher = parameters.getDecipher( iv );
-    packet.fragment = Buffer.concat([
+    var decrypted = Buffer.concat([
         cipher.update( ciphered ),
         cipher.final() ]);
+
+    packet.fragment = decrypted.slice( 0, decrypted.length - 21 );
+    var mac = decrypted.slice( packet.fragment.length );
+
+    // Verify MAC
+    var header = new Buffer(13);
+    header.writeUInt16BE( packet.epoch, 0 );
+    packet.sequenceNumber.copy( header, 2 );
+    header.writeUInt8( packet.type, 8 );
+    header.writeInt8( packet.version.major, 9 );
+    header.writeInt8( packet.version.minor, 10 );
+    header.writeUInt16BE( packet.fragment.length, 11 );
+
+    var expectedMac = parameters.calculateMac([ header, packet.fragment ]);
+    mac = mac.slice( 0, expectedMac.length );
+    if( !mac.slice( 0, expectedMac.length ).equals( expectedMac ) ) {
+        throw new Error( 'Mac mismatch: ' + expectedMac.toString( 'hex' ) + ' vs ' + mac.toString( 'hex' ) );
+    }
+
+    log.info( 'Message authenticated. MAC ok' );
 };
 
 DtlsRecordLayer.prototype.encrypt = function( packet ) {

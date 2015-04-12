@@ -172,7 +172,6 @@ DtlsSession.prototype.process_handshake_finished = function( handshake, message 
     var prf_func = prf( message.version );
 
     var handshakeMessages = Buffer.concat( parameters.handshakeMessages );
-    console.log( handshakeMessages );
 
     var expected = prf_func(
             parameters.masterKey,
@@ -181,7 +180,6 @@ DtlsSession.prototype.process_handshake_finished = function( handshake, message 
             finished.verifyData.length
         );
 
-    console.log( expected.toString( 'hex' ) + ' vs ' + finished.verifyData.toString( 'hex' ));
     if( finished.verifyData.equals( expected ) )
         this.changeState( SessionState.clientFinished );
 };
@@ -249,7 +247,6 @@ DtlsSession.prototype.actions[ SessionState.clientFinished ] = function() {
     // message, so we need sendEpoch + 1.
     var parameters = this.parameters.getCurrent( 
         this.recordLayer.sendEpoch + 1 );
-    console.log( parameters.version );
     var prf_func = prf( parameters.version );
 
     var handshakes = this.handshakeBuilder.createHandshakes([
