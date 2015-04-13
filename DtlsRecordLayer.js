@@ -61,7 +61,7 @@ DtlsRecordLayer.prototype.resendLast = function() {
     this.send( this.lastOutgoing );
 };
 
-DtlsRecordLayer.prototype.send = function( msg ) {
+DtlsRecordLayer.prototype.send = function( msg, callback ) {
 
     var envelopes = [];
     if( !( msg instanceof Array ) )
@@ -74,7 +74,7 @@ DtlsRecordLayer.prototype.send = function( msg ) {
                 version: parameters.version,
                 epoch: this.sendEpoch,
                 sequenceNumber: parameters.sendSequence.next(),
-                fragment: msg[m].getBuffer()
+                fragment: msg[m].getBuffer ? msg[m].getBuffer() : msg[m].buffer,
             });
 
         if( !parameters ) {
@@ -93,26 +93,38 @@ DtlsRecordLayer.prototype.send = function( msg ) {
 
     this.lastOutgoing = envelopes;
 
-    this.sendInternal( envelopes );
+    this.sendInternal( envelopes, callback );
     return envelopes;
 };
 
-DtlsRecordLayer.prototype.sendInternal = function( envelopes ) {
+DtlsRecordLayer.prototype.sendInternal = function( envelopes, callback ) {
 
-    setTimeout( function() {
-        for( var e in envelopes ) {
-            var envelope = envelopes[e];
+    // Define the single packet callback only if the caller was interested in a
+    // callback.
+    var singlePacketCallback = null;
+    if( callback ) {
+        var sent = 0;
+        var errors = [];
+        singlePacketCallback = function( err ) {
+            if( err ) errors.push( err );
+            if( ++sent === envelopes.length ) {
+                callback( errors.length ? errors : null );
+            }
+        };
+    }
 
-            var plaintextTypeName = dtls.MessageTypeName[ envelope.type ];
+    for( var e in envelopes ) {
+        var envelope = envelopes[e];
 
-            var buffer = envelope.getBuffer();
+        var plaintextTypeName = dtls.MessageTypeName[ envelope.type ];
 
-            log.info( 'Sending', plaintextTypeName, '(', buffer.length, 'bytes)' );
-            this.dgram.send( buffer,
-                0, buffer.length,
-                this.rinfo.port, this.rinfo.address );
-        }
-    }.bind( this ), 500 );
+        var buffer = envelope.getBuffer();
+
+        log.info( 'Sending', plaintextTypeName, '(', buffer.length, 'bytes)' );
+        this.dgram.send( buffer,
+            0, buffer.length,
+            this.rinfo.port, this.rinfo.address, singlePacketCallback );
+    }
 };
 
 DtlsRecordLayer.prototype.decrypt = function( packet ) {
