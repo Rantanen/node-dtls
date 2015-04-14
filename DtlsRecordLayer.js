@@ -31,9 +31,9 @@ DtlsRecordLayer.prototype.getPackets = function( buffer, callback ) {
         
         // Get the security parameters. Ignore the packet if we don't have
         // the parameters for the epoch.
-        var parameters = this.parameters.getCurrent( packet.epoch );
+        var parameters = this.parameters.get( packet );
         if( !parameters ) {
-            log.error( 'Packet with unknown epoch:', packet.epoch );
+            log.warn( 'Packet with unknown epoch:', packet.epoch );
             continue;
         }
 
@@ -49,7 +49,7 @@ DtlsRecordLayer.prototype.getPackets = function( buffer, callback ) {
             if( packet.epoch !== this.receiveEpoch )
                 continue;
 
-            this.parameters.change();
+            this.parameters.changeCipher( packet.epoch );
             this.receiveEpoch = this.parameters.current;
         }
 

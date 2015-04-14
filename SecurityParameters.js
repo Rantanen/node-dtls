@@ -11,9 +11,11 @@ var DtlsProtocolVersion = require( './packets/DtlsProtocolVersion' );
 var log = require( 'logg' ).getLogger( 'dtls.SecurityParameters' );
 var logDigest = require( 'logg' ).getLogger( 'dtls.SecurityParameters.digest' );
 
-var SecurityParameters = function() {
+var SecurityParameters = function( epoch, version ) {
 
-    this.version = new DtlsProtocolVersion({ major: ~1, minor: ~0 });
+    this.epoch = epoch;
+    this.version = version;
+
     this.entity = dtls.ConnectionEnd.server;
 
     // Cipher suite prf
@@ -38,7 +40,7 @@ var SecurityParameters = function() {
     this.clientRandom = null;
     this.serverRandom = null;
 
-    this.handshakeMessages = [];
+    this.handshakeDigest = [];
 
     this.sendSequence = new SequenceNumber();
 };
@@ -129,6 +131,7 @@ SecurityParameters.prototype.digestHandshake = function( msg ) {
 };
 
 SecurityParameters.prototype._digestHandshake = function( msg ) {
+    console.log( msg );
     if( msg.fragment )
         msg = msg.fragment;
 
