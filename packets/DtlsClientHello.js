@@ -7,12 +7,14 @@ var PacketSpec = require( './PacketSpec' );
 var DtlsProtocolVersion = require( './DtlsProtocolVersion' );
 var DtlsRandom = require( './DtlsRandom' );
 var DtlsExtension = require( './DtlsExtension' );
+var dtls = require( '../dtls' );
 
 var DtlsClientHello = function( data ) {
     Packet.call( this, data );
 };
 util.inherits( DtlsClientHello, Packet );
 
+DtlsClientHello.prototype.messageType = dtls.HandshakeType.clientHello;
 DtlsClientHello.prototype.spec = new PacketSpec([
 
     { clientVersion: DtlsProtocolVersion },

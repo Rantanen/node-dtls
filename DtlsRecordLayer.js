@@ -68,11 +68,14 @@ DtlsRecordLayer.prototype.send = function( msg, callback ) {
         msg = [msg];
 
     for( var m in msg ) {
-        var parameters = this.parameters.getCurrent( this.sendEpoch );
+        if( msg[m].__epoch === undefined )
+            msg[m].__epoch = this.sendEpoch;
+
+        var parameters = this.parameters.getCurrent( msg[m].__epoch );
         var envelope = new DtlsPlaintext({
                 type: msg[m].type,
-                version: parameters.version,
-                epoch: this.sendEpoch,
+                version: parameters.version || this.version,
+                epoch: msg[m].__epoch,
                 sequenceNumber: parameters.sendSequence.next(),
                 fragment: msg[m].getBuffer ? msg[m].getBuffer() : msg[m].buffer,
             });
@@ -87,8 +90,11 @@ DtlsRecordLayer.prototype.send = function( msg, callback ) {
         }
 
         envelopes.push( envelope );
-        if( msg[m].type === dtls.MessageType.changeCipherSpec )
+        if( msg[m].type === dtls.MessageType.changeCipherSpec &&
+            !msg[m].__sent )
             this.sendEpoch++;
+
+        msg[m].__sent = true;
     }
 
     this.lastOutgoing = envelopes;

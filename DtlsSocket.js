@@ -6,11 +6,13 @@ var EventEmitter = require( 'events' ).EventEmitter;
 var log = require( 'logg' ).getLogger( 'dtls.DtlsSocket' );
 var crypto = require( 'crypto' );
 var constants = require( 'constants' );
+var dgram = require( 'dgram' );
 
 var dtls = require( './dtls' );
 var SecurityParameterContainer = require( './SecurityParameterContainer' );
 var DtlsRecordLayer = require( './DtlsRecordLayer' );
 var ServerHandshakeHandler = require( './ServerHandshakeHandler' );
+var ClientHandshakeHandler = require( './ClientHandshakeHandler' );
 var HandshakeBuilder = require( './HandshakeBuilder' );
 var CipherInfo = require( './CipherInfo' );
 
@@ -37,7 +39,7 @@ var SocketState = {
     clientFinished: 3,
 };
 
-var DtlsSocket = function( dgram, rinfo, keyContext ) {
+var DtlsSocket = function( dgram, rinfo, keyContext, isServer ) {
     log.info( 'New session' );
 
     this.dgram = dgram;
@@ -46,8 +48,9 @@ var DtlsSocket = function( dgram, rinfo, keyContext ) {
 
     this.parameters = new SecurityParameterContainer();
     this.recordLayer = new DtlsRecordLayer( dgram, rinfo, this.parameters );
-    this.handshakeHandler = new ServerHandshakeHandler(
-        this.parameters, this.keyContext );
+    this.handshakeHandler = isServer
+        ? new ServerHandshakeHandler( this.parameters, this.keyContext )
+        : new ClientHandshakeHandler( this.parameters );
 
     this.handshakeHandler.onSend = function( packets ) {
         this.recordLayer.send( packets );
@@ -58,6 +61,24 @@ var DtlsSocket = function( dgram, rinfo, keyContext ) {
     }.bind( this );
 };
 util.inherits( DtlsSocket, EventEmitter );
+
+DtlsSocket.connect = function( port, address, type, callback ) {
+    var dgramSocket = dgram.createSocket( type );
+    
+    var socket = new DtlsSocket( dgramSocket, { address: address, port: port });
+    socket.renegotiate();
+
+    dgramSocket.on( 'message', socket.handle.bind( socket ) );
+
+    if( callback )
+        socket.once( 'secureConnection', callback );
+
+    return socket;
+};
+
+DtlsSocket.prototype.renegotiate = function() {
+    this.handshakeHandler.renegotiate();
+};
 
 DtlsSocket.prototype.send = function( buffer, offset, length, callback ) {
 

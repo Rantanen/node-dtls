@@ -45,7 +45,7 @@ DtlsServer.prototype._onMessage = function( message, rinfo ) {
     var socket = this.sockets[ socketKey ];
     if( !socket ) {
         this.sockets[ socketKey ] = socket =
-            new DtlsSocket( this.dgram, rinfo, this.keyContext );
+            new DtlsSocket( this.dgram, rinfo, this.keyContext, true );
 
         socket.once( 'secureConnect', function( socket ) {
             this.emit( 'secureConnection', socket );

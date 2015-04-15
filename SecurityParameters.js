@@ -15,6 +15,7 @@ var SecurityParameters = function( epoch, version ) {
 
     this.epoch = epoch;
     this.version = version;
+    this.isServer = true;
 
     this.entity = dtls.ConnectionEnd.server;
 
@@ -61,6 +62,17 @@ SecurityParameters.prototype.setFrom = function( suite ) {
     this.macKeyLength = suite.mac.keyLength;
 };
 
+SecurityParameters.prototype.calculateMasterKey = function( preMasterKey ) {
+
+    this.preMasterKey = preMasterKey;
+    this.masterKey = prf( this.version )(
+        preMasterKey,
+        "master secret", 
+        Buffer.concat([
+            this.clientRandom,
+            this.serverRandom ]), 48 );
+};
+
 SecurityParameters.prototype.init = function() {
 
     var keyBlock = prf( this.version )(
@@ -87,15 +99,18 @@ SecurityParameters.prototype.init = function() {
 };
 
 SecurityParameters.prototype.getDecipher = function( iv ) {
-    return crypto.createDecipheriv( 'aes-128-cbc', this.clientWriteKey, iv );
+    var key = this.isServer ? this.clientWriteKey : this.serverWriteKey;
+    return crypto.createDecipheriv( 'aes-128-cbc', key, iv );
 };
 
 SecurityParameters.prototype.calculateIncomingMac = function( buffer ) {
-    return this.calculateMac( this.clientWriteMacKey, buffer );
+    var key = this.isServer ? this.clientWriteMacKey : this.serverWriteMacKey;
+    return this.calculateMac( key, buffer );
 };
 
 SecurityParameters.prototype.calculateOutgoingMac = function( buffer ) {
-    return this.calculateMac( this.serverWriteMacKey, buffer );
+    var key = this.isServer ? this.serverWriteMacKey : this.clientWriteMacKey;
+    return this.calculateMac( key, buffer );
 };
 
 SecurityParameters.prototype.calculateMac = function( key, buffer ) {
@@ -112,7 +127,8 @@ SecurityParameters.prototype.calculateMac = function( key, buffer ) {
 };
 
 SecurityParameters.prototype.getCipher = function( iv ) {
-    return crypto.createCipheriv( 'aes-128-cbc', this.serverWriteKey, iv );
+    var key = this.isServer ? this.serverWriteKey : this.clientWriteKey;
+    return crypto.createCipheriv( 'aes-128-cbc', key, iv );
 };
 
 SecurityParameters.prototype.resetHandshakeDigest = function() {

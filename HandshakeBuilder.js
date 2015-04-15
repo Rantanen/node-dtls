@@ -92,21 +92,30 @@ HandshakeBuilder.prototype.fragmentHandshakes = function( packet ) {
 HandshakeBuilder.prototype.add = function( handshake ) {
 
     // Ignore this if it's part of a handshake we've already read.
-    if( handshake.messageSeq < this.messageSeqToDecode )
+    if( handshake.messageSeq < this.messageSeqToDecode ) {
+        log.warn( 'seq < decode' );
         return false;
+    }
+    log.info( 'Received fragment of sequence:', handshake.messageSeq );
 
     var buffer = this._getBuffer( handshake );
 
     // Ignore this fragment if we've already got all bytes it would contain.
-    if( handshake.fragmentOffset + handshake.body.length <= buffer.bytesRead ) {
+    if( handshake.body.length > 0 &&
+        handshake.fragmentOffset + handshake.body.length <= buffer.bytesRead ) {
+
+        log.warn( 'no new data' );
         return false;
     }
 
     // Buffer the data if we're not ready to read it yet.
     if( handshake.fragmentOffset > buffer.bytesRead ) {
+        log.warn( 'not ready to handle' );
         buffer.fragments.push( handshake );
         return false;
     }
+
+    log.info( 'Valid data' );
 
     // Write the fragment into the buffer
     this._writeToBuffer( handshake, buffer );
@@ -130,6 +139,7 @@ HandshakeBuilder.prototype.add = function( handshake ) {
         return false;
 
     // Store the completed Handshake message in the merged array.
+    log.info( 'Merged' );
     this.merged[ buffer.messageSeq ] = new DtlsHandshake({
         msgType: buffer.msgType,
         length: buffer.length,
@@ -142,6 +152,7 @@ HandshakeBuilder.prototype.add = function( handshake ) {
     // message again.
     delete this.buffers[ buffer.messageSeq ];
     this.messageSeqToDecode++;
+    log.info( 'Raised decode++', this.messageSeqToDecode );
 
     return true;
 };

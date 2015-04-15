@@ -8,6 +8,7 @@
     "test": "test"
   },
   "dependencies": {
+    "asn1.js": "^1.0.3",
     "logg": "^0.3.0",
     "parse-asn1": "^3.0.0"
   },

@@ -53,9 +53,15 @@ var suites = {
         0x002f, dtls.KeyExchange.rsa, cipher.aes_128_cbc, mac.sha ),
 };
 
+var suitesById = {};
 for( var s in suites ) {
     suites[s].name = s;
+    suitesById[ suites[s].id ] = suites[s];
 }
+
+suites.get = function( id ) {
+    return suitesById[ id ];
+};
 
 module.exports = suites;
 

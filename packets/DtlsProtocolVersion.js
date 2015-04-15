@@ -8,6 +8,7 @@ var PacketSpec = require( './PacketSpec' );
 var DtlsProtocolVersion = function( data ) {
     Packet.call( this, data );
 };
+util.inherits( DtlsProtocolVersion, Packet );
 
 DtlsProtocolVersion.prototype.spec = new PacketSpec([
 

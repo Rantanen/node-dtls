@@ -15,6 +15,7 @@ var SecurityParameterContainer = function() {
 
 SecurityParameterContainer.prototype.initNew = function( version ) {
     this.pending = new SecurityParameters( this.current + 1, version );
+    this.parameters[ this.pending.epoch ] = this.pending;
     return this.pending;
 };
 
@@ -33,7 +34,6 @@ SecurityParameterContainer.prototype.changeCipher = function( epoch ) {
             '- pending epoch is', this.pending.epoch );
 
     this.pending.init();
-    this.parameters[ this.pending.epoch ] = this.pending;
     this.current++;
 };
 

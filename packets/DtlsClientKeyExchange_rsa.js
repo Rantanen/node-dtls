@@ -11,7 +11,7 @@ var DtlsClientKeyExchange_rsa = function( data ) {
 };
 util.inherits( DtlsClientKeyExchange_rsa, Packet );
 
-DtlsClientKeyExchange_rsa.prototype.messageType = dtls.HandshakeType.certificate;
+DtlsClientKeyExchange_rsa.prototype.messageType = dtls.HandshakeType.clientKeyExchange;
 DtlsClientKeyExchange_rsa.prototype.spec = new PacketSpec([
     { exchangeKeys: 'var16' }
 ]);

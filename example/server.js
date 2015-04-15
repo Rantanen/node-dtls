@@ -4,7 +4,7 @@
 var dtls = require( '../' );
 var fs = require( 'fs' );
 
-dtls.setLogLevel( dtls.logLevel.WARN );
+dtls.setLogLevel( dtls.logLevel.FINE );
 var pem = fs.readFileSync( 'server.pem' );
 
 var server = dtls.createServer({

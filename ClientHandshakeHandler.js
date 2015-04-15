@@ -1,7 +1,7 @@
 
 "use strict";
 
-var log = require( 'logg' ).getLogger( 'dtls.ServerHandshakeHandler' );
+var log = require( 'logg' ).getLogger( 'dtls.ClientHandshakeHandler' );
 var crypto = require( 'crypto' );
 var constants = require( 'constants' );
 
@@ -9,6 +9,7 @@ var dtls = require( './dtls' );
 var HandshakeBuilder = require( './HandshakeBuilder' );
 var CipherInfo = require( './CipherInfo' );
 var prf = require( './prf' );
+var Certificate = require( './Certificate' );
 
 var DtlsHandshake = require( './packets/DtlsHandshake' );
 var DtlsClientHello = require( './packets/DtlsClientHello' );
@@ -20,6 +21,7 @@ var DtlsClientKeyExchange_rsa = require( './packets/DtlsClientKeyExchange_rsa' )
 var DtlsPreMasterSecret = require( './packets/DtlsPreMasterSecret' );
 var DtlsChangeCipherSpec = require( './packets/DtlsChangeCipherSpec' );
 var DtlsFinished = require( './packets/DtlsFinished' );
+var DtlsProtocolVersion = require( './packets/DtlsProtocolVersion' );
 var DtlsRandom = require( './packets/DtlsRandom' );
 var DtlsExtension = require( './packets/DtlsExtension' );
 
@@ -29,13 +31,15 @@ var DtlsExtension = require( './packets/DtlsExtension' );
  */
 
 /**
- * Implements the DTLS server handshake.
+ * Implements the DTLS client handshake.
  */
-var ServerHandshakeHandler = function( parameters, keyContext ) {
+var ClientHandshakeHandler = function( parameters, keyContext ) {
 
     this.parameters = parameters;
-    this.keyContext = keyContext;
     this.handshakeBuilder = new HandshakeBuilder();
+
+    this.cookie = new Buffer(0);
+    this.certificate = null;
 
     // Handshake builder makes sure that the normal handling methods never
     // receive duplicate packets. Duplicate packets may mean that the last
@@ -44,12 +48,12 @@ var ServerHandshakeHandler = function( parameters, keyContext ) {
 };
 
 /**
- * Processes an incoming handshake message from the client.
+ * Processes an incoming handshake message from the server.
  *
  * @param {DtlsPlaintext} message
  *      The TLS envelope containing the handshake message.
  */
-ServerHandshakeHandler.prototype.process = function( message ) {
+ClientHandshakeHandler.prototype.process = function( message ) {
 
     // Enqueue the current handshake.
     var newHandshake = new DtlsHandshake( message.fragment );
@@ -98,73 +102,26 @@ ServerHandshakeHandler.prototype.process = function( message ) {
     }
 };
 
-/**
- * Handles the ClientHello message.
- *
- * The message is accepted only if it contains the correct cookie. If the
- * cookie is wrong, we'll send a HelloVerifyRequest packet instead of
- * proceeding with the handshake.
- */
-ServerHandshakeHandler.prototype.handle_clientHello = function( handshake, message ) {
-
-    var clientHello = new DtlsClientHello( handshake.body );
-
-    // TODO: If this is the very first handshake, the version of the initial
-    // SecurityParameters hasn't been set. Set it to equal the current version.
-    if( !this.parameters.first.version )
-        this.parameters.first.version = clientHello.clientVersion;
-
-    if( clientHello.cookie.length === 0 ||
-        !clientHello.cookie.equals( this.cookie ) ) {
-
-        log.fine( 'ClientHello without cookie. Requesting verify.' );
-
-        this.cookie = crypto.pseudoRandomBytes( 16 );
-        var cookieVerify = new DtlsHelloVerifyRequest({
-            serverVersion: clientHello.clientVersion,
-            cookie: this.cookie
-        });
-
-        var handshakes = this.handshakeBuilder.createHandshakes( cookieVerify );
-
-        this.setResponse( handshakes );
-
-    } else {
-
-        log.fine( 'ClientHello received. Client version:', 
-            ~clientHello.clientVersion.major + '.' + 
-            ~clientHello.clientVersion.minor );
-
-        // ClientHello is the first message of a new handshake. This is a good
-        // place to create the new SecurityParamters that will be negotiated
-        // with this handshake sequence.
-        // TODO: Validate client version
-        this.version = clientHello.clientVersion;
-
-        this.newParameters = this.parameters.initNew( this.version );
-        this.newParameters.clientRandom = clientHello.random.getBytes();
-
-        // The handle_ methods should RETURN the response action.
-        // See the handle() method for explanation.
-        return this.send_serverHello;
-    }
+ClientHandshakeHandler.prototype.renegotiate = function() {
+    this.send_clientHello();
 };
 
 /**
  * Sends the ServerHello message
  */
-ServerHandshakeHandler.prototype.send_serverHello = function() {
+ClientHandshakeHandler.prototype.send_clientHello = function() {
 
     // TLS spec require all implementations MUST implement the
     // TLS_RSA_WITH_AES_128_CBC_SHA cipher.
     var cipher = CipherInfo.TLS_RSA_WITH_AES_128_CBC_SHA;
 
-    var serverHello = new DtlsServerHello({
-        serverVersion: this.version,
+    var clientHello = new DtlsClientHello({
+        clientVersion: new DtlsProtocolVersion({ major: ~1, minor: ~2 }),
         random: new DtlsRandom(),
         sessionId: new Buffer(0),
-        cipherSuite: cipher.id,
-        compressionMethod: 0,
+        cookie: this.cookie || new Buffer(0),
+        cipherSuites: [ cipher.id ],
+        compressionMethods: [ 0 ],
 
         // TODO: Remove the requirement for extensions. Currently packets with
         // 0 extensions will serialize wrong. I don't even remember which
@@ -179,21 +136,12 @@ ServerHandshakeHandler.prototype.send_serverHello = function() {
     });
 
     // Store more parameters.
-    this.newParameters.serverRandom = serverHello.random.getBytes();
-    this.newParameters.setFrom( cipher );
+    this.newParameters = this.parameters.initNew( clientHello.clientVersion );
+    this.newParameters.isServer = false;
+    this.newParameters.clientRandom = clientHello.random.getBytes();
 
-    var certificate = new DtlsCertificate({
-        certificateList: [ this.keyContext.certificate ]
-    });
-
-    var helloDone = new DtlsServerHelloDone();
-
-    log.info( 'Sending ServerHello, Certificate, HelloDone' );
-    var handshakes = this.handshakeBuilder.createHandshakes([
-        serverHello,
-        certificate,
-        helloDone
-    ]);
+    log.info( 'Sending ClientHello' );
+    var handshakes = this.handshakeBuilder.createHandshakes([ clientHello ]);
 
     handshakes = handshakes.map( function(h) { return h.getBuffer(); });
     this.newParameters.digestHandshake( handshakes );
@@ -203,27 +151,114 @@ ServerHandshakeHandler.prototype.send_serverHello = function() {
     this.setResponse( packets );
 };
 
+ClientHandshakeHandler.prototype.handle_helloVerifyRequest = function( handshake ) {
+    var verifyRequest = new DtlsHelloVerifyRequest( handshake.body );
+    this.cookie = verifyRequest.cookie;
+
+    this.version = verifyRequest.serverVersion;
+    this.newParameters.version = this.version;
+
+    return this.send_clientHello;
+};
+
 /**
- * Handles the ClientKeyExchange message.
+ * Handles the ClientHello message.
+ *
+ * The message is accepted only if it contains the correct cookie. If the
+ * cookie is wrong, we'll send a HelloVerifyRequest packet instead of
+ * proceeding with the handshake.
  */
-ServerHandshakeHandler.prototype.handle_clientKeyExchange = function( handshake ) {
+ClientHandshakeHandler.prototype.handle_serverHello = function( handshake, message ) {
 
-    var clientKeyExchange = new DtlsClientKeyExchange_rsa( handshake.body );
+    var serverHello = new DtlsServerHello( handshake.body );
 
-    // TODO: if this fails, create random preMasterKey to guard against chosen
-    // ciphertext/PKCS#1 attack.
-    var preMasterSecret = crypto.privateDecrypt({
-            key: this.keyContext.key,
-            padding: constants.RSA_PKCS1_PADDING
-        }, clientKeyExchange.exchangeKeys );
+    log.fine( 'ServerHello received. Server version:', 
+        ~serverHello.serverVersion.major + '.' + 
+        ~serverHello.serverVersion.minor );
 
-    this.newParameters.calculateMasterKey( preMasterSecret );
+    // TODO: Validate server version
+    this.version = serverHello.serverVersion;
+    this.newParameters.version = this.version;
+    this.newParameters.serverRandom = serverHello.random.getBytes();
+    var cipher = CipherInfo.get( serverHello.cipherSuite );
+    this.newParameters.setFrom( cipher );
+    this.newParameters.compressionMethod = serverHello.compressionMethod;
 
-    // Do nothing here. We're still waiting for the Finished message.
-    //
-    // Set the response to null though as we know the client got the last
-    // flight.
+    if( !this.parameters.first.version )
+        this.parameters.first.version = serverHello.serverVersion;
+
     this.setResponse( null );
+};
+
+ClientHandshakeHandler.prototype.handle_certificate = function( handshake, message ) {
+
+    var certificate = new DtlsCertificate( handshake.body );
+
+    // Just grab the first ceritificate ":D"
+    this.certificate = certificate.certificateList[ 0 ];
+
+    this.setResponse( null );
+};
+
+ClientHandshakeHandler.prototype.handle_serverHelloDone = function( handshake, message ) {
+
+    log.info( 'Server hello done' );
+
+    var preMasterKey = Buffer.concat([
+        this.version.getBuffer(),
+        crypto.randomBytes( 46 ) ]);
+
+    this.newParameters.calculateMasterKey( preMasterKey );
+    this.newParameters.preMasterKey = preMasterKey;
+
+    this.newParameters.init();
+
+    log.info( 'Returning', this.send_keyExchange );
+    return this.send_keyExchange;
+};
+
+ClientHandshakeHandler.prototype.send_keyExchange = function() {
+
+    log.info( 'Constructing key exchange' );
+
+    var publicKey = Certificate.getPublicKeyPem( this.certificate );
+    var exchangeKeys = crypto.publicEncrypt({
+            key: publicKey,
+            padding: constants.RSA_PKCS1_PADDING
+        }, this.newParameters.preMasterKey );
+
+    var keyExchange = new DtlsClientKeyExchange_rsa({
+        exchangeKeys: exchangeKeys
+    });
+    var keyExchangeHandshake = this.handshakeBuilder.createHandshakes(
+            keyExchange ).getBuffer();
+
+    this.newParameters.digestHandshake( keyExchangeHandshake );
+    this.newParameters.preMasterKey = null;
+
+    var changeCipherSpec = new DtlsChangeCipherSpec({ value: 1 });
+
+    var prf_func = prf( this.version );
+    var verifyData = prf_func(
+        this.newParameters.masterKey,
+        "client finished",
+        this.newParameters.getHandshakeDigest(),
+        12
+    );
+    var finished = new DtlsFinished({ verifyData: verifyData });
+    var finishedHandshake = this.handshakeBuilder.createHandshakes(
+            finished ).getBuffer();
+    this.newParameters.digestHandshake( finishedHandshake );
+
+    var keyExchangeFragments = this.handshakeBuilder.fragmentHandshakes( keyExchangeHandshake );
+    var finishedFragments = this.handshakeBuilder.fragmentHandshakes( finishedHandshake );
+
+    var outgoingFragments = keyExchangeFragments;
+    outgoingFragments.push( changeCipherSpec );
+    outgoingFragments = outgoingFragments.concat( finishedFragments );
+
+    console.log( 'Outgoing: ' + outgoingFragments.length );
+    this.setResponse( outgoingFragments );
 };
 
 /**
@@ -233,7 +268,7 @@ ServerHandshakeHandler.prototype.handle_clientKeyExchange = function( handshake 
  * and Finished messages. ChangeCipherSpec isn't a handshake message though so
  * it never makes it here. That message is handled in the RecordLayer.
  */
-ServerHandshakeHandler.prototype.handle_finished = function( handshake, message ) {
+ClientHandshakeHandler.prototype.handle_finished = function( handshake, message ) {
 
     var finished = new DtlsFinished( handshake.body );
 
@@ -241,7 +276,7 @@ ServerHandshakeHandler.prototype.handle_finished = function( handshake, message 
 
     var expected = prf_func(
         this.newParameters.masterKey,
-        "client finished",
+        "server finished",
         this.newParameters.getHandshakeDigest(),
         finished.verifyData.length
     );
@@ -254,32 +289,11 @@ ServerHandshakeHandler.prototype.handle_finished = function( handshake, message 
         return;
     }
 
+    this.setResponse( null );
+
     // The handle_ methods should RETURN the response action.
     // See the handle() method for explanation.
-    return this.send_serverFinished;
-};
-
-ServerHandshakeHandler.prototype.send_serverFinished = function() {
-
-    var changeCipherSpec = new DtlsChangeCipherSpec({ value: 1 });
-
-    var prf_func = prf( this.version );
-
-    var finished = new DtlsFinished({
-        verifyData: prf_func(
-            this.newParameters.masterKey,
-            "server finished",
-            this.newParameters.getHandshakeDigest(), 12
-        )});
-
-    var handshakes = this.handshakeBuilder.createHandshakes([ finished ]);
-    handshakes = this.handshakeBuilder.fragmentHandshakes( handshakes );
-    handshakes.unshift( changeCipherSpec );
-
-    log.info( 'Verify data:', finished.verifyData );
-    log.info( 'Sending ChangeCipherSpec, Finished' );
-
-    var messages = this.setResponse( handshakes, this.onHandshake );
+    return this.onHandshake();
 };
 
 /**
@@ -288,11 +302,18 @@ ServerHandshakeHandler.prototype.send_serverFinished = function() {
  * The last flight of packets is stored so we can somewhat automatically handle
  * retransmission when we see the client doing it.
  */
-ServerHandshakeHandler.prototype.setResponse = function( packets, done ) {
+ClientHandshakeHandler.prototype.setResponse = function( packets, done ) {
     this.lastFlight = packets;
 
     if( packets )
         this.onSend( packets, done );
+
+    if( this.retransmitTimer )
+        clearTimeout( this.retransmitTimer );
+
+    this.retransmitTimer = setTimeout( function() {
+        this.retransmitLast();
+    }.bind( this ), 1000 );
 };
 
 /**
@@ -301,10 +322,14 @@ ServerHandshakeHandler.prototype.setResponse = function( packets, done ) {
  * @param {DtlsPlaintext} message
  *      The received packet that triggered this retransmit.
  */
-ServerHandshakeHandler.prototype.retransmitLast = function( message ) {
+ClientHandshakeHandler.prototype.retransmitLast = function( message ) {
 
     if( this.lastFlight )
         this.onSend( this.lastFlight );
+
+    this.retransmitTimer = setTimeout( function() {
+        this.retransmitLast();
+    }.bind( this ), 1000 );
 };
 
-module.exports = ServerHandshakeHandler;
+module.exports = ClientHandshakeHandler;
