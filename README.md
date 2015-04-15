@@ -14,6 +14,8 @@ against well known TLS attacks.
 
 #### Example
 
+##### Server
+
 ```javascript
 var dtls = require( 'dtls' );
 var fs = require( 'fs' );
@@ -36,35 +38,37 @@ server.on( 'secureConnection', function( socket ) {
 });
 ```
 
+##### Client
+
+```javascript
+var dtls = require( '../' );
+
+dtls.setLogLevel( dtls.logLevel.FINE );
+
+var client = dtls.connect( 4433, 'example.org', 'udp4', function() {
+    client.send( new Buffer( 'foo\n' ) );
+});
+
+client.on( 'message', function( msg ) {
+    console.log( msg );
+});
+```
+
 #### Current state
 
-Currently the library succeeds in performing DTLS 1.2 handshake in server role
-and decrypts application data from the client.
-
-There is no real API to work with so currently the library is of no real use.
-This should change within the next week or two though. I believe most of the
-hard work is done for a usable DTLS-server implementation.
 
 - [x] DTLS 1.2 handshake in server role
-  - [x] RSA master secret exchange
-  - [x] Generate keying material
-  - [x] Encrypt/Decrypt ciphertext
-  - [x] Calculate HMAC
-  - [x] Validate handshake with Finished messages
+- [x] DTLS 1.2 handshake in client role
+  - Still some problems when it comes to receiving messages. Not very confident.
 - [x] Handle application data
-  - [x] Receive and decrypt application data from the client
-  - [x] Encrypt and send application data to the client
-    - Encryption/Decryption stuff should be in place already. API is missing.
 - [x] Proper API to handle sessions/messages outside the node-dtls internals.
-  - Try to mimic tls/dgram APIs from Node
 - [ ] DTLS 1.0 handshake in server role
   - There shouldn't be _too_ many changes. Main one is propably the PRF hash.
-- [ ] Connect in client role
 - [ ] Handle renegotiation
 - [ ] Robustness
   - [x] Handshake reassembly/buffering/reordering
+  - [x] Retransmission
   - [ ] Handle alert-messages
-  - [ ] Retransmission
   - [ ] Validate handshake state and expected messages
 
 ## API
@@ -114,6 +118,31 @@ server.on( 'secureConnection', function( socket ) {
 The server.pem certificate can be created with
 
     openssl req -x509 -nodes -newkey rsa:2048 -keyout server.pem -out server.pem
+
+-----
+
+#### dtls.connect( port, address, type, callback )
+
+- `port` - Remote port to connect to.
+- `address` - Remote address to connect to.
+- `type` - Datagram socket type: `udp4` or `udp6`. Ssee [`dgram`](https://nodejs.org/api/dgram.html) for full explanation.
+- `callback` - Callback for when the handshake is ready.
+
+Initiates a connection to a remote server and returns the `dtls.DtlsSocket`.
+
+##### Example
+
+```javascript
+var dtls = require( 'dtls' );
+
+var client = dtls.connect( 4433, 'example.org', 'udp4', function() {
+    client.send( new Buffer( 'foo\n' ) );
+});
+
+client.on( 'message', function( msg ) {
+    console.log( msg );
+});
+```
 
 -----
 
