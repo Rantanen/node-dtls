@@ -1,6 +1,8 @@
 
 "use strict";
 
+var log = require( 'logg' ).getLogger( 'dtls.DtlsServer' );
+
 var util = require( 'util' );
 var EventEmitter = require( 'events' ).EventEmitter;
 var DtlsSocket = require( './DtlsSocket' );
@@ -48,6 +50,7 @@ DtlsServer.prototype._onMessage = function( message, rinfo ) {
             new DtlsSocket( this.dgram, rinfo, this.keyContext, true );
 
         socket.once( 'secureConnect', function( socket ) {
+            log.info( 'Handshake done' );
             this.emit( 'secureConnection', socket );
         }.bind( this ));
     }

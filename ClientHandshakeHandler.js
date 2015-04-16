@@ -87,7 +87,6 @@ ClientHandshakeHandler.prototype.process = function( message ) {
         // We read the buffer in HandshakeBuilder anyway so there's no real
         // reason to call getBuffer() here.
         if( this.newParameters ) {
-            console.log( handshake );
             this.newParameters.digestHandshake( handshake.getBuffer() );
         }
 
@@ -257,7 +256,6 @@ ClientHandshakeHandler.prototype.send_keyExchange = function() {
     outgoingFragments.push( changeCipherSpec );
     outgoingFragments = outgoingFragments.concat( finishedFragments );
 
-    console.log( 'Outgoing: ' + outgoingFragments.length );
     this.setResponse( outgoingFragments );
 };
 

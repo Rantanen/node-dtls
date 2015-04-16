@@ -83,7 +83,6 @@ ServerHandshakeHandler.prototype.process = function( message ) {
         // We read the buffer in HandshakeBuilder anyway so there's no real
         // reason to call getBuffer() here.
         if( this.newParameters ) {
-            console.log( handshake );
             this.newParameters.digestHandshake( handshake.getBuffer() );
         }
 

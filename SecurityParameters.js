@@ -147,7 +147,6 @@ SecurityParameters.prototype.digestHandshake = function( msg ) {
 };
 
 SecurityParameters.prototype._digestHandshake = function( msg ) {
-    console.log( msg );
     if( msg.fragment )
         msg = msg.fragment;
 

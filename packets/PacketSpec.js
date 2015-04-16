@@ -210,7 +210,6 @@ function constructVariableLengthWrite( length ) {
     return function( builder, value, type ) {
 
         if( !type.itemType ) {
-            console.log( type.name );
             builder[ 'writeUInt' + length ]( value.length );
             builder.writeBytes( value );
         } else {
