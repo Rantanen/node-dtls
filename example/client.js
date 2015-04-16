@@ -12,5 +12,6 @@ var client = dtls.connect( 4433, 'localhost', 'udp4', function() {
 });
 
 client.on( 'message', function( msg ) {
+    console.log( 'Received application data' );
     console.log( msg );
 });

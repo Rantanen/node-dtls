@@ -52,12 +52,13 @@ var DtlsSocket = function( dgram, rinfo, keyContext, isServer ) {
         ? new ServerHandshakeHandler( this.parameters, this.keyContext )
         : new ClientHandshakeHandler( this.parameters );
 
-    this.handshakeHandler.onSend = function( packets ) {
-        this.recordLayer.send( packets );
+    this.handshakeHandler.onSend = function( packets, callback ) {
+        this.recordLayer.send( packets, callback );
     }.bind( this );
 
     this.handshakeHandler.onHandshake = function() {
-        this.emit( 'secureConnection', this );
+        log.info( 'Handshake done' );
+        this.emit( 'secureConnect', this );
     }.bind( this );
 };
 util.inherits( DtlsSocket, EventEmitter );
@@ -71,7 +72,7 @@ DtlsSocket.connect = function( port, address, type, callback ) {
     dgramSocket.on( 'message', socket.handle.bind( socket ) );
 
     if( callback )
-        socket.once( 'secureConnection', callback );
+        socket.once( 'secureConnect', callback );
 
     return socket;
 };

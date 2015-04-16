@@ -28,6 +28,11 @@ DtlsRecordLayer.prototype.getPackets = function( buffer, callback ) {
     while( reader.available() ) {
 
         var packet = new DtlsPlaintext( reader );
+
+        // Ignore early packets.
+        // TODO: Buffer these
+        if( packet.epoch > this.receiveEpoch )
+            continue;
         
         // Get the security parameters. Ignore the packet if we don't have
         // the parameters for the epoch.
@@ -46,11 +51,13 @@ DtlsRecordLayer.prototype.getPackets = function( buffer, callback ) {
         }
 
         if( packet.type === dtls.MessageType.changeCipherSpec ) {
+
             if( packet.epoch !== this.receiveEpoch )
                 continue;
 
             this.parameters.changeCipher( packet.epoch );
             this.receiveEpoch = this.parameters.current;
+
         }
 
         callback( packet );
@@ -91,8 +98,11 @@ DtlsRecordLayer.prototype.send = function( msg, callback ) {
 
         envelopes.push( envelope );
         if( msg[m].type === dtls.MessageType.changeCipherSpec &&
-            !msg[m].__sent )
+            !msg[m].__sent ) {
+
+            log.info( 'Change cipher spec' );
             this.sendEpoch++;
+        }
 
         msg[m].__sent = true;
     }
