@@ -64,13 +64,9 @@ DtlsRecordLayer.prototype.getPackets = function( buffer, callback ) {
     }
 };
 
-DtlsRecordLayer.prototype.resendLast = function() {
-    this.send( this.lastOutgoing );
-};
-
 DtlsRecordLayer.prototype.send = function( msg, callback ) {
 
-    var envelopes = [];
+    var buffers = [];
     if( !( msg instanceof Array ) )
         msg = [msg];
 
@@ -96,7 +92,7 @@ DtlsRecordLayer.prototype.send = function( msg, callback ) {
             this.encrypt( envelope );
         }
 
-        envelopes.push( envelope );
+        buffers.push( envelope.getBuffer() );
         if( msg[m].type === dtls.MessageType.changeCipherSpec &&
             !msg[m].__sent ) {
 
@@ -107,40 +103,47 @@ DtlsRecordLayer.prototype.send = function( msg, callback ) {
         msg[m].__sent = true;
     }
 
-    this.lastOutgoing = envelopes;
-
-    this.sendInternal( envelopes, callback );
-    return envelopes;
+    this.sendInternal( buffers, callback );
 };
 
-DtlsRecordLayer.prototype.sendInternal = function( envelopes, callback ) {
+DtlsRecordLayer.prototype.sendInternal = function( buffers, callback ) {
 
     // Define the single packet callback only if the caller was interested in a
     // callback.
     var singlePacketCallback = null;
+    var pending = 0;
     if( callback ) {
-        var sent = 0;
         var errors = [];
         singlePacketCallback = function( err ) {
             if( err ) errors.push( err );
-            if( ++sent === envelopes.length ) {
+            if( --pending === 0 ) {
                 callback( errors.length ? errors : null );
             }
         };
     }
 
-    for( var e in envelopes ) {
-        var envelope = envelopes[e];
+    var flight = [ buffers.shift() ];
+    var flight_length = flight[0].length;
+    while( buffers.length > 0 ) {
 
-        var plaintextTypeName = dtls.MessageTypeName[ envelope.type ];
+        if( buffers[0].length + flight_length > 1000 ) {
+            pending++;
+            this.dgram.send( Buffer.concat( flight ),
+                0, flight_length,
+                this.rinfo.port, this.rinfo.address, singlePacketCallback );
 
-        var buffer = envelope.getBuffer();
+            flight_length = 0;
+            flight = [];
+        }
 
-        log.info( 'Sending', plaintextTypeName, '(', buffer.length, 'bytes)' );
-        this.dgram.send( buffer,
-            0, buffer.length,
-            this.rinfo.port, this.rinfo.address, singlePacketCallback );
+        flight_length += buffers[0].length;
+        flight.push( buffers.shift() );
     }
+
+    pending++;
+    this.dgram.send( flight.length === 1 ? flight[0] : Buffer.concat( flight ),
+        0, flight_length,
+        this.rinfo.port, this.rinfo.address, singlePacketCallback );
 };
 
 DtlsRecordLayer.prototype.decrypt = function( packet ) {
@@ -165,8 +168,6 @@ DtlsRecordLayer.prototype.decrypt = function( packet ) {
     if( !mac.slice( 0, expectedMac.length ).equals( expectedMac ) ) {
         throw new Error( 'Mac mismatch: ' + expectedMac.toString( 'hex' ) + ' vs ' + mac.toString( 'hex' ) );
     }
-
-    log.info( 'Message authenticated. MAC ok' );
 };
 
 DtlsRecordLayer.prototype.encrypt = function( packet ) {
