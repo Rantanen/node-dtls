@@ -45,6 +45,7 @@ var DtlsSocket = function( dgram, rinfo, keyContext, isServer ) {
     this.dgram = dgram;
     this.rinfo = rinfo;
     this.keyContext = keyContext;
+    this.isServer = isServer;
 
     this.parameters = new SecurityParameterContainer();
     this.recordLayer = new DtlsRecordLayer( dgram, rinfo, this.parameters );
@@ -97,6 +98,14 @@ DtlsSocket.prototype.send = function( buffer, offset, length, callback ) {
     };
 
     this.recordLayer.send( packet, callback );
+};
+
+DtlsSocket.prototype.close = function() {
+    if( this.isServer )
+        throw new Error(
+            'Attempting to close a server socket. Close the server instead' );
+
+    this.dgram.close();
 };
 
 DtlsSocket.prototype.handle = function( buffer ) {

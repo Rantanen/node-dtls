@@ -32,6 +32,11 @@ DtlsServer.createServer = function( options, callback ) {
     return dtlsServer;
 };
 
+DtlsSocket.prototype.close = function() {
+    this.dgram.close();
+};
+
+
 DtlsServer.prototype.bind = function( port ) {
     if( !this.keyContext )
         throw new Error(
