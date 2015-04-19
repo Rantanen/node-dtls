@@ -9,7 +9,9 @@ var DtlsProtocolVersion = require( './DtlsProtocolVersion' );
 var dtls = require( '../dtls' );
 
 var DtlsPlaintext = function( data ) {
-    Packet.call( this, data );
+    for( var d in data ) {
+        this[d] = data[d];
+    }
 };
 util.inherits( DtlsPlaintext, Packet );
 
