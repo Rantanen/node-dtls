@@ -10,20 +10,13 @@ var SequenceNumber = function() {
 
 SequenceNumber.prototype.next = function() {
 
-    if( this.low32 !== 0xffffffff ) {
-        this.low32++;
-    } else {
-        this.low32 = 0;
-        this.high16++;
-
-        // Update high 16 only when it changes.
-        this.current.writeUInt16BE( this.high16, 0 );
+    for( var i = 5; i >= 0; i-- ) {
+        this.current[i] = ( this.current[i] + 1 ) & 0xff;
+        if( this.current[i] )
+            break;
     }
 
-    // Always update the low 32
-    this.current.writeUInt32BE( this.low32, 2 );
-
-    return new Buffer( this.current );
+    return this.current;
 };
 
 module.exports = SequenceNumber;
