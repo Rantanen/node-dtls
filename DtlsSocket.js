@@ -89,12 +89,9 @@ DtlsSocket.prototype.send = function( buffer, offset, length, callback ) {
     if( offset )
         buffer = buffer.slice( offset, offset + length );
 
-    var lengthBuffer = new Buffer(2);
-    lengthBuffer.writeUInt16BE( buffer.length );
-
     var packet = {
         type: dtls.MessageType.applicationData,
-        buffer: Buffer.concat([ buffer ])
+        buffer: buffer
     };
 
     this.recordLayer.send( packet, callback );
@@ -111,30 +108,30 @@ DtlsSocket.prototype.close = function() {
 DtlsSocket.prototype.handle = function( buffer ) {
     var self = this;
 
-    log.fine( 'Incoming packet; length:', buffer.length );
     this.recordLayer.getPackets( buffer, function( packet ) {
 
-        var msgType = dtls.MessageTypeName[ packet.type ];
-        var handler = self[ 'process_' + msgType ];
+        var handler = DtlsSocket.handlers[ packet.type ];
 
-        if( !handler )
+        if( !handler ) {
+            var msgType = dtls.MessageTypeName[ packet.type ];
             return log.error( 'Handler not found for', msgType, 'message' );
+        }
 
         handler.call( self, packet );
     });
 };
 
-DtlsSocket.prototype.process_handshake = function( message ) {
+DtlsSocket.handlers = [];
+DtlsSocket.handlers[ dtls.MessageType.handshake ] = function( message ) {
     this.handshakeHandler.process( message );
 };
 
-DtlsSocket.prototype.process_changeCipherSpec = function( message ) {
+DtlsSocket.handlers[ dtls.MessageType.changeCipherSpec ] = function( message ) {
     // Record layer does the work here.
     log.info( 'Changed Cipher Spec' );
 };
 
-DtlsSocket.prototype.process_applicationData = function( message ) {
-    log.info( 'Received application data: ', message.fragment );
+DtlsSocket.handlers[ dtls.MessageType.applicationData ] = function( message ) {
     this.emit( 'message', message.fragment );
 };
 
