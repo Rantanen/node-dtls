@@ -32,7 +32,7 @@ DtlsServer.createServer = function( options, callback ) {
     return dtlsServer;
 };
 
-DtlsSocket.prototype.close = function() {
+DtlsServer.prototype.close = function() {
     this.dgram.close();
 };
 
