@@ -24,10 +24,10 @@ var DtlsRecordLayer = function( dgram, rinfo, parameters ) {
 
 DtlsRecordLayer.prototype.getPackets = function( buffer, callback ) {
 
-    var reader = new BufferReader( buffer );
-    while( reader.available() ) {
+    var packets = DtlsPlaintext.readPackets( buffer );
+    for( var p in packets ) {
 
-        var packet = new DtlsPlaintext( reader );
+        var packet = packets[p];
 
         // Ignore early packets.
         // TODO: Buffer these
