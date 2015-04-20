@@ -2,9 +2,6 @@
 "use strict";
 
 var SequenceNumber = function() {
-    this.low32 = 0;
-    this.high16 = 0;
-
     this.current = new Buffer([ 0, 0, 0, 0, 0, 0 ]);
 };
 

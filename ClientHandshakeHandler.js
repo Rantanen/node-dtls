@@ -155,7 +155,6 @@ ClientHandshakeHandler.prototype.handle_helloVerifyRequest = function( handshake
     this.cookie = verifyRequest.cookie;
 
     this.version = verifyRequest.serverVersion;
-    this.newParameters.version = this.version;
 
     return this.send_clientHello;
 };
