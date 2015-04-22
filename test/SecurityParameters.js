@@ -134,6 +134,37 @@ describe( 'SecurityParameters', function() {
 
         describe( '#getCipher()', function() {
 
+            it( 'should return working server-write aes-128-cbc cipher', function() {
+
+                var sp = new SecurityParameters( 1, version );
+                sp.isServer = true;
+                sp.clientWriteKey = new Buffer( '373f963f4a2fbc13ffa22b256c46d36a', 'hex' );
+                sp.serverWriteKey = new Buffer( '41585768b95aa0fa9a18be07be5f1d3c', 'hex' );
+
+                var iv = new Buffer( '75b16855266f79a050903e2fba5cfd6f', 'hex' );
+                var data = new Buffer(
+                    '48edcabd93af9026843f4326be93c81f' +
+                    '0cb8556a2e56bc25cc9698f5ad19acad' +
+                    'd1a47ddedc875100ec73b2094d486a38' +
+                    '2651894e05695abdc42214170de48f09', 'hex' );
+
+                var cipher = sp.getCipher( iv );
+
+                var encrypted = Buffer.concat([
+                    cipher.update( data ),
+                    cipher.final()
+                ]);
+
+                var expected = new Buffer(
+                    '477c287763301575026ef7b399e8d23c' +
+                    '7440fbf02cb0b8da6078fc15d257047d' +
+                    '61520998f5b93a462fb2d8c7fb88ca1e' +
+                    '4986558eedf87389dd22dc0cfd938d30' +
+                    'be4a7ad5486fa08ec5e9ff30ba4507d5', 'hex' );
+
+                encrypted.should.deep.equal( expected );
+            });
+
             it( 'should return working client-write aes-128-cbc cipher', function() {
 
                 var sp = new SecurityParameters( 1, version );
@@ -167,6 +198,37 @@ describe( 'SecurityParameters', function() {
         });
 
         describe( '#getDecipher()', function() {
+
+            it( 'should return working client-read aes-128-cbc decipher', function() {
+
+                var sp = new SecurityParameters( 1, version );
+                sp.isServer = false;
+                sp.clientWriteKey = new Buffer( '373f963f4a2fbc13ffa22b256c46d36a', 'hex' );
+                sp.serverWriteKey = new Buffer( '41585768b95aa0fa9a18be07be5f1d3c', 'hex' );
+
+                var iv = new Buffer( '75b16855266f79a050903e2fba5cfd6f', 'hex' );
+                var data = new Buffer(
+                    '477c287763301575026ef7b399e8d23c' +
+                    '7440fbf02cb0b8da6078fc15d257047d' +
+                    '61520998f5b93a462fb2d8c7fb88ca1e' +
+                    '4986558eedf87389dd22dc0cfd938d30' +
+                    'be4a7ad5486fa08ec5e9ff30ba4507d5', 'hex' );
+
+                var decipher = sp.getDecipher( iv );
+
+                var decrypted = Buffer.concat([
+                    decipher.update( data ),
+                    decipher.final()
+                ]);
+
+                var expected = new Buffer(
+                    '48edcabd93af9026843f4326be93c81f' +
+                    '0cb8556a2e56bc25cc9698f5ad19acad' +
+                    'd1a47ddedc875100ec73b2094d486a38' +
+                    '2651894e05695abdc42214170de48f09', 'hex' );
+
+                decrypted.should.deep.equal( expected );
+            });
 
             it( 'should return working server-read aes-128-cbc decipher', function() {
 
