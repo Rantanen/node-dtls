@@ -7,6 +7,7 @@ var packets = require( '../packets' );
 var dtls = require( '../dtls' );
 var CipherInfo = require( '../CipherInfo' );
 var prf = require( '../prf' );
+var muna = require( '../' );
 
 var SecurityParameters = require( '../SecurityParameters' );
 
@@ -124,6 +125,78 @@ describe( 'SecurityParameters', function() {
                 sp.serverWriteKey.should.deep.equal( expected.swk );
                 sp.clientWriteIv.should.deep.equal( expected.cwi );
                 sp.serverWriteIv.should.deep.equal( expected.swi );
+            });
+        });
+    });
+
+    describe( 'AES_128_CBC cipher', function() {
+        var version = new packets.ProtocolVersion( ~1, ~2 );
+
+        describe( '#getCipher()', function() {
+
+            it( 'should return working client-write aes-128-cbc cipher', function() {
+
+                var sp = new SecurityParameters( 1, version );
+                sp.isServer = false;
+                sp.clientWriteKey = new Buffer( '373f963f4a2fbc13ffa22b256c46d36a', 'hex' );
+                sp.serverWriteKey = new Buffer( '41585768b95aa0fa9a18be07be5f1d3c', 'hex' );
+
+                var iv = new Buffer( '75b16855266f79a050903e2fba5cfd6f', 'hex' );
+                var data = new Buffer(
+                    '48edcabd93af9026843f4326be93c81f' +
+                    '0cb8556a2e56bc25cc9698f5ad19acad' +
+                    'd1a47ddedc875100ec73b2094d486a38' +
+                    '2651894e05695abdc42214170de48f09', 'hex' );
+
+                var cipher = sp.getCipher( iv );
+
+                var encrypted = Buffer.concat([
+                    cipher.update( data ),
+                    cipher.final()
+                ]);
+
+                var expected = new Buffer(
+                    '3ba3ad25235f5b5baa5467f556e71d96' +
+                    '7223d0484149fa70e7e4c6ff9a19f647' +
+                    'b2a10a1179e73240e89b0a959869c200' +
+                    '370137001b14b8378d06f954e18ff6dd' +
+                    'e18ec5cce8db90a4b8d39c70d041c4a2', 'hex' );
+
+                encrypted.should.deep.equal( expected );
+            });
+        });
+
+        describe( '#getDecipher()', function() {
+
+            it( 'should return working server-read aes-128-cbc decipher', function() {
+
+                var sp = new SecurityParameters( 1, version );
+                sp.isServer = true;
+                sp.clientWriteKey = new Buffer( '373f963f4a2fbc13ffa22b256c46d36a', 'hex' );
+                sp.serverWriteKey = new Buffer( '41585768b95aa0fa9a18be07be5f1d3c', 'hex' );
+
+                var iv = new Buffer( '75b16855266f79a050903e2fba5cfd6f', 'hex' );
+                var data = new Buffer(
+                    '3ba3ad25235f5b5baa5467f556e71d96' +
+                    '7223d0484149fa70e7e4c6ff9a19f647' +
+                    'b2a10a1179e73240e89b0a959869c200' +
+                    '370137001b14b8378d06f954e18ff6dd' +
+                    'e18ec5cce8db90a4b8d39c70d041c4a2', 'hex' );
+
+                var decipher = sp.getDecipher( iv );
+
+                var decrypted = Buffer.concat([
+                    decipher.update( data ),
+                    decipher.final()
+                ]);
+
+                var expected = new Buffer(
+                    '48edcabd93af9026843f4326be93c81f' +
+                    '0cb8556a2e56bc25cc9698f5ad19acad' +
+                    'd1a47ddedc875100ec73b2094d486a38' +
+                    '2651894e05695abdc42214170de48f09', 'hex' );
+
+                decrypted.should.deep.equal( expected );
             });
         });
     });
