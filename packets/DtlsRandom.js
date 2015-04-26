@@ -25,7 +25,7 @@ DtlsRandom.prototype.generate = function() {
     this.randomBytes = crypto.randomBytes( 28 );
 };
 
-DtlsRandom.prototype.getBytes = function() {
+DtlsRandom.prototype.getBuffer = function() {
 
     if( this.bytes ) return this.bytes;
 

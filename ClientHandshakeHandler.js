@@ -137,7 +137,7 @@ ClientHandshakeHandler.prototype.send_clientHello = function() {
     // Store more parameters.
     this.newParameters = this.parameters.initNew( clientHello.clientVersion );
     this.newParameters.isServer = false;
-    this.newParameters.clientRandom = clientHello.random.getBytes();
+    this.newParameters.clientRandom = clientHello.random.getBuffer();
 
     log.info( 'Sending ClientHello' );
     var handshakes = this.handshakeBuilder.createHandshakes([ clientHello ]);
@@ -177,7 +177,7 @@ ClientHandshakeHandler.prototype.handle_serverHello = function( handshake, messa
     // TODO: Validate server version
     this.version = serverHello.serverVersion;
     this.newParameters.version = this.version;
-    this.newParameters.serverRandom = serverHello.random.getBytes();
+    this.newParameters.serverRandom = serverHello.random.getBuffer();
     var cipher = CipherInfo.get( serverHello.cipherSuite );
     this.newParameters.setFrom( cipher );
     this.newParameters.compressionMethod = serverHello.compressionMethod;

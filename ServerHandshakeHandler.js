@@ -141,7 +141,7 @@ ServerHandshakeHandler.prototype.handle_clientHello = function( handshake, messa
         this.version = clientHello.clientVersion;
 
         this.newParameters = this.parameters.initNew( this.version );
-        this.newParameters.clientRandom = clientHello.random.getBytes();
+        this.newParameters.clientRandom = clientHello.random.getBuffer();
 
         // The handle_ methods should RETURN the response action.
         // See the handle() method for explanation.
@@ -178,7 +178,7 @@ ServerHandshakeHandler.prototype.send_serverHello = function() {
     });
 
     // Store more parameters.
-    this.newParameters.serverRandom = serverHello.random.getBytes();
+    this.newParameters.serverRandom = serverHello.random.getBuffer();
     this.newParameters.setFrom( cipher );
 
     var certificate = new DtlsCertificate({
