@@ -2,6 +2,7 @@ language: node_js
 install:
     - npm install -g istanbul
     - npm install -g codeclimate-test-reporter
+    - npm install -g coveralls
     - npm install
 node_js:
     - "node"
@@ -10,3 +11,4 @@ script:
     - istanbul cover node_modules/mocha/bin/_mocha
 after_script:
     - codeclimate < coverage/lcov.info
+    - coveralls < coverage/lcov.info
