@@ -14,7 +14,8 @@
   },
   "devDependencies": {
     "chai": "^2.2.0",
-    "minimist": "^1.1.1"
+    "minimist": "^1.1.1",
+    "mocha": "^2.2.4"
   },
   "scripts": {
     "test": "mocha"
