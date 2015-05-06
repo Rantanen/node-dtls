@@ -3,11 +3,13 @@
 
 var should = require( 'chai' ).should();
 var crypto = require( 'crypto' );
+var log = require( 'logg' ).getLogger( 'dtls' );
+log.setLogLevel( log.SEVERE );
+
 var packets = require( '../packets' );
 var dtls = require( '../dtls' );
 var CipherInfo = require( '../CipherInfo' );
 var prf = require( '../prf' );
-var muna = require( '../' );
 
 var SecurityParameters = require( '../SecurityParameters' );
 

@@ -3,6 +3,8 @@
 
 var should = require( 'chai' ).should();
 var crypto = require( 'crypto' );
+var log = require( 'logg' ).getLogger( 'dtls' );
+log.setLogLevel( log.SEVERE );
 
 var HandshakeBuilder = require( '../HandshakeBuilder' );
 var dtls = require( '../dtls' );
