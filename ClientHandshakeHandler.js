@@ -45,6 +45,8 @@ var ClientHandshakeHandler = function( parameters, keyContext ) {
     // receive duplicate packets. Duplicate packets may mean that the last
     // flight of packets we sent got lost though so we need to handle these.
     this.handshakeBuilder.onRetransmission = this.retransmitLast.bind( this );
+
+    this.version = { major: ~1, minor: ~2 };
 };
 
 /**
@@ -115,7 +117,9 @@ ClientHandshakeHandler.prototype.send_clientHello = function() {
     var cipher = CipherInfo.TLS_RSA_WITH_AES_128_CBC_SHA;
 
     var clientHello = new DtlsClientHello({
-        clientVersion: new DtlsProtocolVersion({ major: ~1, minor: ~2 }),
+        clientVersion: new DtlsProtocolVersion(
+                this.version.major,
+                this.version.minor ),
         random: new DtlsRandom(),
         sessionId: new Buffer(0),
         cookie: this.cookie || new Buffer(0),
@@ -154,8 +158,6 @@ ClientHandshakeHandler.prototype.handle_helloVerifyRequest = function( handshake
     var verifyRequest = new DtlsHelloVerifyRequest( handshake.body );
     this.cookie = verifyRequest.cookie;
 
-    this.version = verifyRequest.serverVersion;
-
     return this.send_clientHello;
 };
 
@@ -170,13 +172,12 @@ ClientHandshakeHandler.prototype.handle_serverHello = function( handshake, messa
 
     var serverHello = new DtlsServerHello( handshake.body );
 
-    log.fine( 'ServerHello received. Server version:', 
-        ~serverHello.serverVersion.major + '.' + 
+    log.fine( 'ServerHello received. Server version:',
+        ~serverHello.serverVersion.major + '.' +
         ~serverHello.serverVersion.minor );
 
     // TODO: Validate server version
-    this.version = serverHello.serverVersion;
-    this.newParameters.version = this.version;
+    this.newParameters.version = this.newParameters.version;
     this.newParameters.serverRandom = serverHello.random.getBuffer();
     var cipher = CipherInfo.get( serverHello.cipherSuite );
     this.newParameters.setFrom( cipher );
@@ -203,7 +204,7 @@ ClientHandshakeHandler.prototype.handle_serverHelloDone = function( handshake, m
     log.info( 'Server hello done' );
 
     var preMasterKey = Buffer.concat([
-        this.version.getBuffer(),
+        this.newParameters.version.getBuffer(),
         crypto.randomBytes( 46 ) ]);
 
     this.newParameters.calculateMasterKey( preMasterKey );
@@ -236,7 +237,7 @@ ClientHandshakeHandler.prototype.send_keyExchange = function() {
 
     var changeCipherSpec = new DtlsChangeCipherSpec({ value: 1 });
 
-    var prf_func = prf( this.version );
+    var prf_func = prf( this.newParameters.version );
     var verifyData = prf_func(
         this.newParameters.masterKey,
         "client finished",
@@ -269,7 +270,7 @@ ClientHandshakeHandler.prototype.handle_finished = function( handshake, message 
 
     var finished = new DtlsFinished( handshake.body );
 
-    var prf_func = prf( this.version );
+    var prf_func = prf( this.newParameters.version );
 
     var expected = prf_func(
         this.newParameters.masterKey,

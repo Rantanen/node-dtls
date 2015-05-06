@@ -261,6 +261,199 @@ describe( 'SecurityParameters', function() {
                 decrypted.should.deep.equal( expected );
             });
         });
+
+        describe( '#calculateIncomingMac()', function() {
+
+            it( 'should calculate correct client-outgoing sha1 mac', function() {
+
+                var sp = new SecurityParameters( 1, version );
+                sp.isServer = false;
+                sp.clientWriteMacKey = new Buffer( 'c83a7b69c782891a61ddc9306f35bc37a25f69db', 'hex' );
+                sp.serverWriteMacKey = new Buffer( '4e7321133d2a6af97851feebb97f373d4098169c', 'hex' );
+
+                var data = new Buffer(
+                    '7804afb92904ad81ee5b046427c1a4dc' +
+                    '0f8c76031d25d29db259ebf86b7ad34e' +
+                    '227159354963c64e8c76c8500ab755e4' +
+                    '72e72aaf6fede1657bd638ecb01ca56e' +
+                    'ce72cd1e03b57376a1732aba242fa0b6' +
+                    '2a94238f3107201b424b3d44cca9d3f5' +
+                    'e43cdf7174f4d45ab724369b7c9f18c6' +
+                    '355295e4d1b7b4ccb700733cc3bc4958', 'hex' );
+
+                var actual = sp.calculateIncomingMac( data );
+                var expected = new Buffer(
+                    '827451fec1fffae0c0f4955f1da9fe53f1b42c30', 'hex' );
+
+                actual.should.deep.equal( expected );
+            });
+
+            it( 'should calculate correct server-outgoing sha1 mac', function() {
+
+                var sp = new SecurityParameters( 1, version );
+                sp.isServer = true;
+                sp.clientWriteMacKey = new Buffer( 'c83a7b69c782891a61ddc9306f35bc37a25f69db', 'hex' );
+                sp.serverWriteMacKey = new Buffer( '4e7321133d2a6af97851feebb97f373d4098169c', 'hex' );
+
+                var data = new Buffer(
+                    '7804afb92904ad81ee5b046427c1a4dc' +
+                    '0f8c76031d25d29db259ebf86b7ad34e' +
+                    '227159354963c64e8c76c8500ab755e4' +
+                    '72e72aaf6fede1657bd638ecb01ca56e' +
+                    'ce72cd1e03b57376a1732aba242fa0b6' +
+                    '2a94238f3107201b424b3d44cca9d3f5' +
+                    'e43cdf7174f4d45ab724369b7c9f18c6' +
+                    '355295e4d1b7b4ccb700733cc3bc4958', 'hex' );
+
+                var actual = sp.calculateIncomingMac( data );
+                var expected = new Buffer(
+                    'ce9f001479227dbc11d60757bf94d113e9e7be9a', 'hex' );
+
+                actual.should.deep.equal( expected );
+            });
+        });
+
+        describe( '#calculateOutgoingMac()', function() {
+
+            it( 'should calculate correct client-outgoing sha1 mac', function() {
+
+                var sp = new SecurityParameters( 1, version );
+                sp.isServer = false;
+                sp.clientWriteMacKey = new Buffer( 'c83a7b69c782891a61ddc9306f35bc37a25f69db', 'hex' );
+                sp.serverWriteMacKey = new Buffer( '4e7321133d2a6af97851feebb97f373d4098169c', 'hex' );
+
+                var data = [
+                    new Buffer( '7804afb92904ad81ee5b046427c1a4dc', 'hex' ),
+                    new Buffer( '0f8c76031d25d29db259ebf86b7ad34e', 'hex' ),
+                    new Buffer( '227159354963c64e8c76c8500ab755e4', 'hex' ),
+                    new Buffer( '72e72aaf6fede1657bd638ecb01ca56e', 'hex' ),
+                    new Buffer( 'ce72cd1e03b57376a1732aba242fa0b6', 'hex' ),
+                    new Buffer( '2a94238f3107201b424b3d44cca9d3f5', 'hex' ),
+                    new Buffer( 'e43cdf7174f4d45ab724369b7c9f18c6', 'hex' ),
+                    new Buffer( '355295e4d1b7b4ccb700733cc3bc4958', 'hex' ),
+                ];
+
+                var actual = sp.calculateOutgoingMac( data );
+                var expected = new Buffer(
+                    'ce9f001479227dbc11d60757bf94d113e9e7be9a', 'hex' );
+
+                actual.should.deep.equal( expected );
+            });
+
+            it( 'should calculate correct server-outgoing sha1 mac', function() {
+
+                var sp = new SecurityParameters( 1, version );
+                sp.isServer = true;
+                sp.clientWriteMacKey = new Buffer( 'c83a7b69c782891a61ddc9306f35bc37a25f69db', 'hex' );
+                sp.serverWriteMacKey = new Buffer( '4e7321133d2a6af97851feebb97f373d4098169c', 'hex' );
+
+                var data = [
+                    new Buffer( '7804afb92904ad81ee5b046427c1a4dc', 'hex' ),
+                    new Buffer( '0f8c76031d25d29db259ebf86b7ad34e', 'hex' ),
+                    new Buffer( '227159354963c64e8c76c8500ab755e4', 'hex' ),
+                    new Buffer( '72e72aaf6fede1657bd638ecb01ca56e', 'hex' ),
+                    new Buffer( 'ce72cd1e03b57376a1732aba242fa0b6', 'hex' ),
+                    new Buffer( '2a94238f3107201b424b3d44cca9d3f5', 'hex' ),
+                    new Buffer( 'e43cdf7174f4d45ab724369b7c9f18c6', 'hex' ),
+                    new Buffer( '355295e4d1b7b4ccb700733cc3bc4958', 'hex' ),
+                ];
+
+                var actual = sp.calculateOutgoingMac( data );
+                var expected = new Buffer(
+                    '827451fec1fffae0c0f4955f1da9fe53f1b42c30', 'hex' );
+
+
+                actual.should.deep.equal( expected );
+            });
+        });
+
+        describe( '#digestHandshake()', function() {
+
+            it( 'should perform TLS 1.2 digest on single data', function() {
+
+                var sp = new SecurityParameters( 1, version );
+
+                var data = new Buffer(
+                    '7804afb92904ad81ee5b046427c1a4dc' +
+                    '0f8c76031d25d29db259ebf86b7ad34e' +
+                    '227159354963c64e8c76c8500ab755e4' +
+                    '72e72aaf6fede1657bd638ecb01ca56e' +
+                    'ce72cd1e03b57376a1732aba242fa0b6' +
+                    '2a94238f3107201b424b3d44cca9d3f5' +
+                    'e43cdf7174f4d45ab724369b7c9f18c6' +
+                    '355295e4d1b7b4ccb700733cc3bc4958', 'hex' );
+
+                sp.digestHandshake( data );
+
+                var actual = sp.getHandshakeDigest();
+
+                var expected = new Buffer(
+                    '44ea752d8cd1c819007758528c81da75' +
+                    '604feba1727222548221cea68db8c0d2', 'hex' );
+
+                actual.should.deep.equal( expected );
+            });
+
+            it( 'should perform TLS 1.2 digest on Handshake packets', function() {
+
+                var sp = new SecurityParameters( 1, version );
+
+                var data = [
+                    new Buffer( '7804afb92904ad81ee5b046427c1a4dc', 'hex' ),
+                    new Buffer( '0f8c76031d25d29db259ebf86b7ad34e', 'hex' ),
+                    new Buffer( '227159354963c64e8c76c8500ab755e4', 'hex' ),
+                    new Buffer( '72e72aaf6fede1657bd638ecb01ca56e', 'hex' ),
+                    new Buffer( 'ce72cd1e03b57376a1732aba242fa0b6', 'hex' ),
+                    new Buffer( '2a94238f3107201b424b3d44cca9d3f5', 'hex' ),
+                    new Buffer( 'e43cdf7174f4d45ab724369b7c9f18c6', 'hex' ),
+                    new Buffer( '355295e4d1b7b4ccb700733cc3bc4958', 'hex' ),
+                ];
+
+                for( var d in data ) {
+                    var packet = new packets.Plaintext({
+                        type: 0,
+                        version: version,
+                        epoch: 0,
+                        sequenceNumber: new Buffer([ 0x01 ]),
+                        fragment: data[ d ]
+                    });
+                    sp.digestHandshake( packet );
+                }
+
+                var actual = sp.getHandshakeDigest();
+
+                var expected = new Buffer(
+                    '44ea752d8cd1c819007758528c81da75' +
+                    '604feba1727222548221cea68db8c0d2', 'hex' );
+
+                actual.should.deep.equal( expected );
+            });
+
+            it( 'should perform TLS 1.2 digest on array data', function() {
+
+                var sp = new SecurityParameters( 1, version );
+
+                var data = [
+                    new Buffer( '7804afb92904ad81ee5b046427c1a4dc', 'hex' ),
+                    new Buffer( '0f8c76031d25d29db259ebf86b7ad34e', 'hex' ),
+                    new Buffer( '227159354963c64e8c76c8500ab755e4', 'hex' ),
+                    new Buffer( '72e72aaf6fede1657bd638ecb01ca56e', 'hex' ),
+                    new Buffer( 'ce72cd1e03b57376a1732aba242fa0b6', 'hex' ),
+                    new Buffer( '2a94238f3107201b424b3d44cca9d3f5', 'hex' ),
+                    new Buffer( 'e43cdf7174f4d45ab724369b7c9f18c6', 'hex' ),
+                    new Buffer( '355295e4d1b7b4ccb700733cc3bc4958', 'hex' ),
+                ];
+
+                sp.digestHandshake( data );
+                var actual = sp.getHandshakeDigest();
+
+                var expected = new Buffer(
+                    '44ea752d8cd1c819007758528c81da75' +
+                    '604feba1727222548221cea68db8c0d2', 'hex' );
+
+                actual.should.deep.equal( expected );
+            });
+        });
     });
 });
 

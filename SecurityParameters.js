@@ -67,7 +67,7 @@ SecurityParameters.prototype.calculateMasterKey = function( preMasterKey ) {
     this.preMasterKey = preMasterKey;
     this.masterKey = prf( this.version )(
         preMasterKey,
-        "master secret", 
+        "master secret",
         Buffer.concat([
             this.clientRandom,
             this.serverRandom ]), 48 );
