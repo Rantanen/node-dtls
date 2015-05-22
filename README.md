@@ -5,6 +5,7 @@ node-dtls
 
 [![Travis build](https://travis-ci.org/Rantanen/node-dtls.svg?branch=master)](https://travis-ci.org/Rantanen/node-dtls)
 [![Test Coverage](https://codeclimate.com/github/Rantanen/node-dtls/badges/coverage.svg)](https://codeclimate.com/github/Rantanen/node-dtls/coverage)
+[![Code Climate](https://codeclimate.com/github/Rantanen/node-dtls/badges/gpa.svg)](https://codeclimate.com/github/Rantanen/node-dtls)
 
 Datagram Transport Layer Security (DTLS) Protocol implementation for Node.js
 written in JavaScript.
