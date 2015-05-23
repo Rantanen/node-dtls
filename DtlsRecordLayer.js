@@ -168,14 +168,14 @@ DtlsRecordLayer.prototype.decrypt = function( packet ) {
     if( !mac.slice( 0, expectedMac.length ).equals( expectedMac ) ) {
         throw new Error(
             'Mac mismatch: ' + expectedMac.toString( 'hex' ) + ' vs ' + mac.toString( 'hex' ) + '\n' +
-            'Full fragment: ' + packet.fragment.toString( 'hex' ) + '\n' +
+            'Full fragment: ' + iv.toString( 'hex' ) + ' - ' + ciphered.toString( 'hex' ) + '\n' +
             'Keys:\n' + 
-                parameters.clientWriteMacKey + '\n' +
-                parameters.serverWriteMacKey + '\n' +
-                parameters.clientWriteKey + '\n' +
-                parameters.serverWriteKey + '\n' +
-                parameters.clientWriteIv + '\n' +
-                parameters.serverWriteIv );
+                parameters.clientWriteMacKey.toString( 'hex' ) + '\n' +
+                parameters.serverWriteMacKey.toString( 'hex' ) + '\n' +
+                parameters.clientWriteKey.toString( 'hex' ) + '\n' +
+                parameters.serverWriteKey.toString( 'hex' ) + '\n' +
+                parameters.clientWriteIv.toString( 'hex' ) + '\n' +
+                parameters.serverWriteIv.toString( 'hex' ) );
     }
 };
 
