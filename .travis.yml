@@ -12,7 +12,7 @@ node_js:
     - "node"
     - "iojs"
 script:
-    - istanbul cover node_modules/mocha/bin/_mocha
+    - istanbul cover node_modules/mocha/bin/_mocha test/openssl.js
 after_script:
     - codeclimate < coverage/lcov.info
     - coveralls < coverage/lcov.info
