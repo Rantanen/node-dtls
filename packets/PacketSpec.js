@@ -81,6 +81,9 @@ PacketSpec.prototype.write = function( obj ) {
 
 PacketSpec.readItem = function( reader, item, obj ) {
 
+    if( reader.buffer.length - reader.offset === 0 && item.optional )
+        return;
+
     // Resolve the function used to read the value.
     var readerFunc = null;
     if( item.read ) {
