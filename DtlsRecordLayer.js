@@ -166,7 +166,16 @@ DtlsRecordLayer.prototype.decrypt = function( packet ) {
     var expectedMac = parameters.calculateIncomingMac([ header, packet.fragment ]);
     mac = mac.slice( 0, expectedMac.length );
     if( !mac.slice( 0, expectedMac.length ).equals( expectedMac ) ) {
-        throw new Error( 'Mac mismatch: ' + expectedMac.toString( 'hex' ) + ' vs ' + mac.toString( 'hex' ) );
+        throw new Error(
+            'Mac mismatch: ' + expectedMac.toString( 'hex' ) + ' vs ' + mac.toString( 'hex' ) + '\n' +
+            'Full fragment: ' + packet.fragment.toString( 'hex' ) + '\n' +
+            'Keys:\n' + 
+                parameters.clientWriteMacKey + '\n' +
+                parameters.serverWriteMacKey + '\n' +
+                parameters.clientWriteKey + '\n' +
+                parameters.serverWriteKey + '\n' +
+                parameters.clientWriteIv + '\n' +
+                parameters.serverWriteIv );
     }
 };
 
