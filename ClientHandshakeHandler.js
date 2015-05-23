@@ -137,6 +137,10 @@ ClientHandshakeHandler.prototype.send_clientHello = function() {
     });
 
     // Store more parameters.
+    // We'll assume DTLS 1.0 so the plaintext layer is understood by everyone.
+    // The clientVersion contains the real supported DTLS version for the
+    // server.  In serverHello handler we'll read the DTLS version the server
+    // decided on and use that for the future record layer packets.
     this.newParameters = this.parameters.initNew(
             new DtlsProtocolVersion( ~1, ~0 ) );
     this.newParameters.isServer = false;
@@ -302,12 +306,17 @@ ClientHandshakeHandler.prototype.handle_finished = function( handshake, message 
 ClientHandshakeHandler.prototype.setResponse = function( packets, done ) {
     this.lastFlight = packets;
 
-    if( packets )
-        this.onSend( packets, done );
-
+    // Clear the retansmit timer for the last packets.
     if( this.retransmitTimer )
         clearTimeout( this.retransmitTimer );
 
+    // If there are no new packets to send, we don't need to send anything
+    // or even set the retransmit timer again.
+    if( !packets )
+        return;
+
+    // Send the packets and set up the timer for retransmit.
+    this.onSend( packets, done );
     this.retransmitTimer = setTimeout( function() {
         this.retransmitLast();
     }.bind( this ), 1000 );

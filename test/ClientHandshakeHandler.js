@@ -74,6 +74,7 @@ describe( 'ClientHandshakeHandler', function() {
                 };
 
                 handshakeHandler.send_clientHello();
+                handshakeHandler.setResponse( null );
             });
 
             it( 'should create new SecurityParameter', function() {
@@ -85,6 +86,7 @@ describe( 'ClientHandshakeHandler', function() {
                 should.not.exist( parameters.pending );
 
                 handshakeHandler.send_clientHello();
+                handshakeHandler.setResponse( null );
 
                 should.exist( parameters.pending );
                 parameters.pending.epoch.should.equal( parameters.current + 1 );
@@ -109,6 +111,7 @@ describe( 'ClientHandshakeHandler', function() {
                     });
 
                 action.should.equal( handshakeHandler.send_clientHello );
+                handshakeHandler.setResponse( null );
 
                 handshakeHandler.cookie.should.deep.equal( cookie );
             });
@@ -208,6 +211,7 @@ describe( 'ClientHandshakeHandler', function() {
                 should.exist( param.masterKey );
                 should.exist( param.preMasterKey );
                 action.should.equal( handshakeHandler.send_keyExchange );
+                handshakeHandler.setResponse( null );
             });
         });
 
@@ -276,6 +280,7 @@ describe( 'ClientHandshakeHandler', function() {
                 };
 
                 var fragments = handshakeHandler.send_keyExchange();
+                handshakeHandler.setResponse( null );
             });
         });
     });
