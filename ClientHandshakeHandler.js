@@ -46,7 +46,7 @@ var ClientHandshakeHandler = function( parameters, keyContext ) {
     // flight of packets we sent got lost though so we need to handle these.
     this.handshakeBuilder.onRetransmission = this.retransmitLast.bind( this );
 
-    this.version = { major: ~1, minor: ~2 };
+    this.version = new DtlsProtocolVersion( ~1, ~2 );
 };
 
 /**
@@ -117,9 +117,7 @@ ClientHandshakeHandler.prototype.send_clientHello = function() {
     var cipher = CipherInfo.TLS_RSA_WITH_AES_128_CBC_SHA;
 
     var clientHello = new DtlsClientHello({
-        clientVersion: new DtlsProtocolVersion(
-                this.version.major,
-                this.version.minor ),
+        clientVersion: this.version,
         random: new DtlsRandom(),
         sessionId: new Buffer(0),
         cookie: this.cookie || new Buffer(0),
@@ -139,7 +137,8 @@ ClientHandshakeHandler.prototype.send_clientHello = function() {
     });
 
     // Store more parameters.
-    this.newParameters = this.parameters.initNew( clientHello.clientVersion );
+    this.newParameters = this.parameters.initNew(
+            new DtlsProtocolVersion( ~1, ~0 ) );
     this.newParameters.isServer = false;
     this.newParameters.clientRandom = clientHello.random.getBuffer();
 
@@ -177,7 +176,7 @@ ClientHandshakeHandler.prototype.handle_serverHello = function( handshake, messa
         ~serverHello.serverVersion.minor );
 
     // TODO: Validate server version
-    this.newParameters.version = this.newParameters.version;
+    this.newParameters.version = serverHello.serverVersion;
     this.newParameters.serverRandom = serverHello.random.getBuffer();
     var cipher = CipherInfo.get( serverHello.cipherSuite );
     this.newParameters.setFrom( cipher );
@@ -203,8 +202,9 @@ ClientHandshakeHandler.prototype.handle_serverHelloDone = function( handshake, m
 
     log.info( 'Server hello done' );
 
+    // We need to use the real client version here, not the negotiated version.
     var preMasterKey = Buffer.concat([
-        this.newParameters.version.getBuffer(),
+        this.version.getBuffer(),
         crypto.randomBytes( 46 ) ]);
 
     this.newParameters.calculateMasterKey( preMasterKey );
@@ -212,7 +212,6 @@ ClientHandshakeHandler.prototype.handle_serverHelloDone = function( handshake, m
 
     this.newParameters.init();
 
-    log.info( 'Returning', this.send_keyExchange );
     return this.send_keyExchange;
 };
 
