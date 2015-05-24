@@ -143,6 +143,9 @@ ServerHandshakeHandler.prototype.handle_clientHello = function( handshake, messa
         this.newParameters = this.parameters.initNew( this.version );
         this.newParameters.clientRandom = clientHello.random.getBuffer();
 
+        log.fine( 'Client ciphers' );
+        log.fine( clientHello.cipherSuites );
+
         // The handle_ methods should RETURN the response action.
         // See the handle() method for explanation.
         return this.send_serverHello;
@@ -176,6 +179,8 @@ ServerHandshakeHandler.prototype.send_serverHello = function() {
             })
         ]
     });
+
+    log.info( 'Server cipher used:', cipher.id );
 
     // Store more parameters.
     this.newParameters.serverRandom = serverHello.random.getBuffer();
