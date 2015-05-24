@@ -33,12 +33,16 @@ DtlsPlaintext.prototype.getFragmentType = function() {
 };
 
 DtlsPlaintext.readPackets = function( data ) {
+    console.log( data.toString( 'hex' ) );
     var start = 0;
     var plaintexts = [];
     while( data.length > start ) {
 
         // Start by checking the length:
         var fragmentLength = data.readUInt16BE( start + 11 );
+        console.log( 'Fragment length: ' + fragmentLength );
+        console.log( 'Fragment end: ' + ( start + 13 + fragmentLength ) );
+        console.log( 'Data length: ' + data.length );
         if( data.length  < start + ( 12 + fragmentLength ) )
             break;
 

@@ -158,6 +158,8 @@ DtlsRecordLayer.prototype.decrypt = function( packet ) {
         cipher.update( ciphered ),
         cipher.final() ]);
 
+    console.log( 'Decrypted' );
+    console.log( decrypted );
     packet.fragment = decrypted.slice( 0, decrypted.length - 21 );
     var mac = decrypted.slice( packet.fragment.length );
 
