@@ -30,7 +30,7 @@ describe( 'openssl', function() {
 
                 client.stdout.setEncoding( 'ascii' );
                 client.stdout.on( 'data', function( data ) {
-                    if( data === '### node->openssl\n' ) {
+                    if( data.indexOf( '### node->openssl\n' ) !== -1 ) {
                         client.kill();
                         done();
                     }
