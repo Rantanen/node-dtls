@@ -154,13 +154,21 @@ DtlsRecordLayer.prototype.decrypt = function( packet ) {
 
     // Decrypt the fragment
     var cipher = parameters.getDecipher( iv );
+    cipher.setAutoPadding( false );
     var decrypted = Buffer.concat([
         cipher.update( ciphered ),
         cipher.final() ]);
 
     console.log( 'Decrypted' );
     console.log( decrypted );
-    packet.fragment = decrypted.slice( 0, decrypted.length - 21 );
+
+    // Remove the padding.
+    var padding = decrypted[ decrypted.length - 1 ];
+    decrypted = decrypted.slice( 0, decrypted.length - padding - 1 );
+    console.log( decrypted );
+
+    // Remove the MAC
+    packet.fragment = decrypted.slice( 0, decrypted.length - 20 );
     var mac = decrypted.slice( packet.fragment.length );
 
     // Verify MAC
@@ -192,7 +200,7 @@ DtlsRecordLayer.prototype.encrypt = function( packet ) {
     var cipher = parameters.getCipher( iv );
 
     var blockSize = 16;
-    var overflow = ( iv.length, packet.fragment.length + mac.length + 1 ) % blockSize;
+    var overflow = ( iv.length + packet.fragment.length + mac.length + 1 ) % blockSize;
     var padAmount = ( overflow === 0 ) ? 0 : ( blockSize - overflow );
     var padding = new Buffer([ padAmount ]);
 
