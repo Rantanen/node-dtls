@@ -5,7 +5,7 @@ var should = require( 'chai' ).should();
 var fs = require( 'fs' );
 var spawn = require( 'child_process' ).spawn;
 var dtls = require( '../' );
-dtls.setLogLevel( dtls.logLevel.SEVERE );
+dtls.setLogLevel( dtls.logLevel.FINE );
 
 var cert = fs.readFileSync( __dirname + '/assets/certificate.pem' );
 
