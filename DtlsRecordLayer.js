@@ -14,7 +14,7 @@ var DtlsRecordLayer = function( dgram, rinfo, parameters ) {
 
     this.dgram = dgram;
     this.rinfo = rinfo;
-    
+
     this.parameters = parameters;
 
     this.receiveEpoch = 0;
@@ -33,7 +33,7 @@ DtlsRecordLayer.prototype.getPackets = function( buffer, callback ) {
         // TODO: Buffer these
         if( packet.epoch > this.receiveEpoch )
             continue;
-        
+
         // Get the security parameters. Ignore the packet if we don't have
         // the parameters for the epoch.
         var parameters = this.parameters.get( packet );
@@ -159,13 +159,9 @@ DtlsRecordLayer.prototype.decrypt = function( packet ) {
         cipher.update( ciphered ),
         cipher.final() ]);
 
-    console.log( 'Decrypted' );
-    console.log( decrypted );
-
     // Remove the padding.
     var padding = decrypted[ decrypted.length - 1 ];
     decrypted = decrypted.slice( 0, decrypted.length - padding - 1 );
-    console.log( decrypted );
 
     // Remove the MAC
     packet.fragment = decrypted.slice( 0, decrypted.length - 20 );
@@ -179,7 +175,7 @@ DtlsRecordLayer.prototype.decrypt = function( packet ) {
         throw new Error(
             'Mac mismatch: ' + expectedMac.toString( 'hex' ) + ' vs ' + mac.toString( 'hex' ) + '\n' +
             'Full fragment: ' + iv.toString( 'hex' ) + ' - ' + ciphered.toString( 'hex' ) + '\n' +
-            'Keys:\n' + 
+            'Keys:\n' +
                 parameters.clientWriteMacKey.toString( 'hex' ) + '\n' +
                 parameters.serverWriteMacKey.toString( 'hex' ) + '\n' +
                 parameters.clientWriteKey.toString( 'hex' ) + '\n' +

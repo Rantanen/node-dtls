@@ -5,12 +5,12 @@ var should = require( 'chai' ).should();
 var fs = require( 'fs' );
 var spawn = require( 'child_process' ).spawn;
 var dtls = require( '../' );
-dtls.setLogLevel( dtls.logLevel.FINE );
 
 var cert = fs.readFileSync( __dirname + '/assets/certificate.pem' );
 
 describe( 'openssl', function() {
     it( 'should validate itself', function( done ) {
+        this.slow( 500 );
 
         // Spawn the client a bit later. Give the UDP port time to init.
         var server = spawn( 'openssl',
@@ -23,7 +23,6 @@ describe( 'openssl', function() {
 
         server.stdout.setEncoding( 'ascii' );
         server.stdout.on( 'data', function( data ) {
-            console.log( 'Server: ' + data.replace( /\n/g, '\nServer: ' ) );
             if( data.indexOf( '### client->server\n' ) !== -1 ) {
                 server.stdin.write( '### server->client\n' );
             }
@@ -37,7 +36,6 @@ describe( 'openssl', function() {
 
             client.stdout.setEncoding( 'ascii' );
             client.stdout.on( 'data', function( data ) {
-            console.log( 'Client: ' + data.replace( /\n/g, '\nClient: ' ) );
                 if( data.indexOf( '### server->client\n' ) !== -1 ) {
                     done();
                     client.kill();
@@ -45,14 +43,13 @@ describe( 'openssl', function() {
                 }
             });
 
-        }, 500 );
+        }, 50 );
 
         setTimeout( function() {
             client.stdin.write( '### client->server\n' );
-        }, 1000 );
+        }, 100 );
 
     });
-    /*
 
     describe( 's_client', function() {
 
@@ -129,5 +126,4 @@ describe( 'openssl', function() {
             }, 100 );
         });
     });
-        */
 });
