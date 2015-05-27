@@ -1,7 +1,7 @@
 language: node_js
 install:
     - sudo apt-get update
-    - sudo apt-get install libssl1.0.0-dbg
+    - sudo apt-get install libssl1.0.0
     - npm install -g istanbul
     - npm install -g codeclimate-test-reporter
     - npm install -g coveralls
@@ -11,7 +11,7 @@ node_js:
     - "node"
     - "iojs"
 script:
-    - istanbul cover node_modules/mocha/bin/_mocha test/openssl.js
+    - istanbul cover node_modules/mocha/bin/_mocha
 after_script:
     - codeclimate < coverage/lcov.info
     - coveralls < coverage/lcov.info
