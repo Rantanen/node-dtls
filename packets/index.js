@@ -9,4 +9,5 @@ module.exports = {
     Random: require( './DtlsRandom' ),
     Certificate: require( './DtlsCertificate' ),
     ClientKeyExchange_rsa: require( './DtlsClientKeyExchange_rsa' ),
+    Finished: require( './DtlsFinished' ),
 };

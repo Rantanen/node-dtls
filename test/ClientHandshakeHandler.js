@@ -283,5 +283,32 @@ describe( 'ClientHandshakeHandler', function() {
                 handshakeHandler.setResponse( null );
             });
         });
+
+        describe( '#handle_finished', function() {
+
+            it( 'should finish handshake', function( done ) {
+
+                var parameters = new SecurityParameterContainer();
+                var handshakeHandler = new ClientHandshakeHandler( parameters );
+                var param = handshakeHandler.newParameters =
+                    parameters.initNew( version );
+
+                param.masterKey = crypto.pseudoRandomBytes( 16 );
+
+                var verifyData = prf( param.version )(
+                    param.masterKey,
+                    "server finished",
+                    param.getHandshakeDigest(), 32 );
+
+                handshakeHandler.onHandshake = function() {
+                    done();
+                };
+
+                var action = handshakeHandler.handle_finished({
+                    body: new packets.Finished({
+                        verifyData: verifyData }).getBuffer()
+                });
+            });
+        });
     });
 });
