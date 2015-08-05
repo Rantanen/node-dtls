@@ -7,7 +7,7 @@ var crypto = require( 'crypto' );
 var SequenceNumber = require( '../SequenceNumber' );
 
 describe( 'SequenceNumber', function() {
-    
+
     describe( '#ctor()', function() {
         it( 'should init correctly', function() {
 
@@ -21,11 +21,10 @@ describe( 'SequenceNumber', function() {
         it( 'should increase counter correctly', function() {
 
             var sn = new SequenceNumber();
-
             sn.current.should.deep.equal( new Buffer([ 0, 0, 0, 0, 0, 0 ]) );
 
             var next = sn.next();
-            
+
             next.should.deep.equal( new Buffer([ 0, 0, 0, 0, 0, 1 ]) );
             sn.current.should.deep.equal( next );
         });
@@ -61,6 +60,45 @@ describe( 'SequenceNumber', function() {
 
             next.should.deep.equal( new Buffer([ 0, 0, 0, 0, 0, 0 ]) );
             sn.current.should.deep.equal( next );
+        });
+    });
+
+    describe( '#setNext()', function() {
+
+        it( 'should set the next value correctly', function() {
+
+            var sn = new SequenceNumber();
+            sn.current.should.deep.equal( new Buffer([ 0, 0, 0, 0, 0, 0 ]) );
+
+            sn.setNext( new Buffer([ 1, 2, 3, 4, 5, 6 ]) );
+            sn.current.should.deep.equal( new Buffer([ 1, 2, 3, 4, 5, 5 ]) );
+
+            var next = sn.next();
+            next.should.deep.equal( new Buffer([ 1, 2, 3, 4, 5, 6 ]) );
+        });
+
+        it( 'should overflow backwards if needed', function() {
+
+            var sn = new SequenceNumber();
+            sn.current.should.deep.equal( new Buffer([ 0, 0, 0, 0, 0, 0 ]) );
+
+            sn.setNext( new Buffer([ 1, 0, 0, 0, 0, 0 ]) );
+            sn.current.should.deep.equal( new Buffer([ 0, 0xff, 0xff, 0xff, 0xff, 0xff ]) );
+
+            var next = sn.next();
+            next.should.deep.equal( new Buffer([ 1, 0, 0, 0, 0, 0 ]) );
+        });
+
+        it( 'should overflow fully if needed', function() {
+
+            var sn = new SequenceNumber();
+            sn.current.should.deep.equal( new Buffer([ 0, 0, 0, 0, 0, 0 ]) );
+
+            sn.setNext( new Buffer([ 0, 0, 0, 0, 0, 0 ]) );
+            sn.current.should.deep.equal( new Buffer([ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff ]) );
+
+            var next = sn.next();
+            next.should.deep.equal( new Buffer([ 0, 0, 0, 0, 0, 0 ]) );
         });
     });
 });

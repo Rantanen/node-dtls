@@ -74,6 +74,9 @@ DtlsRecordLayer.prototype.send = function( msg, callback ) {
         if( msg[m].__epoch === undefined )
             msg[m].__epoch = this.sendEpoch;
 
+        if( msg[m].__sequenceNumber )
+            parameters.sendSequence.setNext( msg[m].__sequenceNumber );
+
         var parameters = this.parameters.getCurrent( msg[m].__epoch );
         var envelope = new DtlsPlaintext({
                 type: msg[m].type,

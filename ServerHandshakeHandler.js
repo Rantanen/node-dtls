@@ -124,14 +124,21 @@ ServerHandshakeHandler.prototype.handle_clientHello = function( handshake, messa
             cookie: this.cookie
         });
 
+        // Generate the Handshake message containing the HelloVerifyRequest
+        // This message should be small enough to not require fragmentation.
         var handshakes = this.handshakeBuilder.createHandshakes( cookieVerify );
+
+        // The server MUST use the record sequence number in the ClientHello
+        // as the record sequence number in the HelloVerifyRequest.
+        //  - RFC
+        //handshakes.__sequenceNumber = message.sequenceNumber;
 
         this.setResponse( handshakes );
 
     } else {
 
-        log.fine( 'ClientHello received. Client version:', 
-            ~clientHello.clientVersion.major + '.' + 
+        log.fine( 'ClientHello received. Client version:',
+            ~clientHello.clientVersion.major + '.' +
             ~clientHello.clientVersion.minor );
 
         // ClientHello is the first message of a new handshake. This is a good
