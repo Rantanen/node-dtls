@@ -1,6 +1,8 @@
 
 "use strict";
 
+var crypto = require( 'crypto' );
+
 var certificateUtilities = require( './certificateUtilities' );
 
 var KeyContext = function( options ) {
@@ -12,6 +14,8 @@ var KeyContext = function( options ) {
 
     if( options.cert )
         this.certificate = certificateUtilities.extractCertificate( options.cert );
+
+    this.cookieSecret = crypto.randomBytes( 32 );
 };
 
 module.exports = KeyContext;

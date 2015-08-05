@@ -31,10 +31,12 @@ var DtlsExtension = require( './packets/DtlsExtension' );
 /**
  * Implements the DTLS server handshake.
  */
-var ServerHandshakeHandler = function( parameters, keyContext ) {
+var ServerHandshakeHandler = function( parameters, keyContext, rinfo ) {
 
     this.parameters = parameters;
     this.keyContext = keyContext;
+    this.rinfo = rinfo;
+
     this.handshakeBuilder = new HandshakeBuilder();
 
     // Handshake builder makes sure that the normal handling methods never
@@ -113,12 +115,37 @@ ServerHandshakeHandler.prototype.handle_clientHello = function( handshake, messa
     if( !this.parameters.first.version )
         this.parameters.first.version = clientHello.clientVersion;
 
+    // Derive the cookie from the internal cookieSecret and client specific
+    // information, including client address and information present in
+    // the ClientHello message.
+    //
+    // The information used from ClientHello includes the cipher suites,
+    // compression methods and extensions. Assuming extensions don't contain
+    // random data, these fields should remain static between handshakes.
+    //
+    // (It might be worth it to exclude extensions from these though.. as
+    // we can't guarantee that all extensions use static values in
+    // ClientHello)
+    //
+    // The cookie is derived using the PRF of the clientHello.clientVersion
+    // which means the clientVersion affects the cookie formation as well.
+    if( !this.cookie ) {
+        this.cookie = prf( clientHello.clientVersion )(
+            this.keyContext.cookieSecret,
+            this.rinfo.address,
+            handshake.body.slice(
+                /* clientVersion */ 2 +
+                /* Random */ 32 +
+                /* sessionId */ clientHello.sessionId.length +
+                /* cookie */ clientHello.cookie.length
+            ), 16 );
+    }
+
     if( clientHello.cookie.length === 0 ||
         !clientHello.cookie.equals( this.cookie ) ) {
 
         log.fine( 'ClientHello without cookie. Requesting verify.' );
 
-        this.cookie = crypto.pseudoRandomBytes( 16 );
         var cookieVerify = new DtlsHelloVerifyRequest({
             serverVersion: clientHello.clientVersion,
             cookie: this.cookie

@@ -50,7 +50,7 @@ var DtlsSocket = function( dgram, rinfo, keyContext, isServer ) {
     this.parameters = new SecurityParameterContainer();
     this.recordLayer = new DtlsRecordLayer( dgram, rinfo, this.parameters );
     this.handshakeHandler = isServer
-        ? new ServerHandshakeHandler( this.parameters, this.keyContext )
+        ? new ServerHandshakeHandler( this.parameters, this.keyContext, rinfo )
         : new ClientHandshakeHandler( this.parameters );
 
     this.handshakeHandler.onSend = function( packets, callback ) {
@@ -66,7 +66,7 @@ util.inherits( DtlsSocket, EventEmitter );
 
 DtlsSocket.connect = function( port, address, type, callback ) {
     var dgramSocket = dgram.createSocket( type );
-    
+
     var socket = new DtlsSocket( dgramSocket, { address: address, port: port });
     socket.renegotiate();
 
