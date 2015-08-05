@@ -158,7 +158,7 @@ ServerHandshakeHandler.prototype.handle_clientHello = function( handshake, messa
         // The server MUST use the record sequence number in the ClientHello
         // as the record sequence number in the HelloVerifyRequest.
         //  - RFC
-        //handshakes.__sequenceNumber = message.sequenceNumber;
+        handshakes.__sequenceNumber = message.sequenceNumber;
 
         this.setResponse( handshakes );
 
