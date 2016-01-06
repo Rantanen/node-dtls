@@ -16,7 +16,7 @@ var extractCertificate = function( pem ) {
     var certLines = null;
     var lines = pem.split( '\n' );
     for( var l in lines ) {
-        var line = lines[l];
+        var line = lines[l].trim();
 
         if( !certLines ) {
 
