@@ -7,6 +7,20 @@ node-dtls
 [![Test Coverage](https://codeclimate.com/github/Rantanen/node-dtls/badges/coverage.svg)](https://codeclimate.com/github/Rantanen/node-dtls/coverage)
 [![Code Climate](https://codeclimate.com/github/Rantanen/node-dtls/badges/gpa.svg)](https://codeclimate.com/github/Rantanen/node-dtls)
 
+[![No Maintenance Intended](http://unmaintained.tech/badge.svg)](http://unmaintained.tech/)
+
+_This repository contains an unfinished DTLS implementation written in
+JavaScript. The implementation was an attempt to give Node.js DTLS support
+while waiting for https://github.com/nodejs/node/issues/2398 to get resolved._
+
+_DTLS handshake and packet communication has been implemented. The largest
+missing things are re-negotiation, other cipher suites, respecting configuration
+options and handling the DTLS alerts._
+
+_The primary goal of the project was to "support" DTLS in the sense that Node.js
+could communicate with services that require DTLS. The code should not be
+relied on for any actual security._
+
 Datagram Transport Layer Security (DTLS) Protocol implementation for Node.js
 written in JavaScript.
 
