@@ -1,7 +1,9 @@
+# See [nodertc/dtls](https://github.com/nodertc/dtls) for a maintained implementation
 
-node-dtls
-=========
-### DTLS implementation in JavaScript (Work in progress)
+----
+
+## node-dtls
+#### DTLS implementation in JavaScript (Work in progress)
 
 [![Travis build](https://travis-ci.org/Rantanen/node-dtls.svg?branch=master)](https://travis-ci.org/Rantanen/node-dtls)
 [![Test Coverage](https://codeclimate.com/github/Rantanen/node-dtls/badges/coverage.svg)](https://codeclimate.com/github/Rantanen/node-dtls/coverage)
